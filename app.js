@@ -40,7 +40,7 @@ const RGB_CARD_COLORS = {
 };
 const defaultCurrencies = ['HKD', 'USD', 'EUR', 'JPY', 'GBP', 'CNY', 'AUD', 'CAD', 'CHF', 'SGD', 'SEK', 'KRW', 'NOK', 'NZD', 'INR', 'MXN', 'TWD', 'ZAR', 'BRL', 'THB'];
 const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND']);
-const STORAGE_KEYS = { currencies: 'fx_terminal_list', pinnedCurrencies: 'fx_terminal_pinned', api: 'fx_terminal_api', rateCache: 'fx_terminal_rate_cache', rateCaches: 'fx_terminal_rate_caches_v2' };
+const STORAGE_KEYS = { currencies: 'fx_terminal_list', pinnedCurrencies: 'fx_terminal_pinned', api: 'fx_terminal_api', theme: 'fx_terminal_theme', rateCache: 'fx_terminal_rate_cache', rateCaches: 'fx_terminal_rate_caches_v2' };
 const RATE_CACHE_FRESH_MS = 15 * 60 * 1000;
 const RATE_CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
@@ -55,9 +55,17 @@ let calcTarget = 'HKD';
 let rateCacheStore = null;
 let backgroundRefreshTimer = null;
 
+function darkenHexColor(hex, factor = 0.42) {
+  const value = Number.parseInt(hex.slice(1), 16);
+  const channel = (offset) => Math.round(((value >> offset) & 255) * factor).toString(16).padStart(2, '0');
+  return `#${channel(16)}${channel(8)}${channel(0)}`;
+}
+
 function getCardColor(code) {
-  const bg = RGB_CARD_COLORS[code] || '#E5E5E5';
-  return { bg, border: 'rgba(0, 0, 0, .22)', watermark: 'rgba(0, 0, 0, .25)' };
+  const lightColor = RGB_CARD_COLORS[code] || '#E5E5E5';
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const bg = isDark ? darkenHexColor(lightColor) : lightColor;
+  return { bg, border: isDark ? 'rgba(255, 255, 255, .24)' : 'rgba(0, 0, 0, .22)', watermark: isDark ? 'rgba(255, 255, 255, .26)' : 'rgba(0, 0, 0, .25)' };
 }
 
 function loadDisplayedCurrencies() {
@@ -453,12 +461,39 @@ function updateCalc() {
   }
 }
 
+const themeButton = document.getElementById('theme-btn');
 const refreshButton = document.getElementById('refresh-btn');
 const sourceControl = document.querySelector('.source-control');
 const sourceMenuButton = document.getElementById('source-menu-btn');
 const sourceMenu = document.getElementById('source-menu');
 const sourceOptions = [...sourceMenu.querySelectorAll('.source-option')];
 let selectedApiType = getSavedApiType();
+
+const THEME_ICONS = {
+  light: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8 8 0 0 1 9.8 3.5 8 8 0 1 0 20.5 14.2z"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+};
+
+function getSavedTheme() {
+  const saved = localStorage.getItem(STORAGE_KEYS.theme);
+  if (saved === 'light' || saved === 'dark') return saved;
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(theme, { render = true } = {}) {
+  const isDark = theme === 'dark';
+  document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+  localStorage.setItem(STORAGE_KEYS.theme, isDark ? 'dark' : 'light');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#0d1117' : '#ffffff');
+  themeButton.setAttribute('aria-pressed', String(isDark));
+  themeButton.setAttribute('aria-label', isDark ? '切換至淺色模式' : '切換至深色模式');
+  themeButton.setAttribute('title', isDark ? '切換至淺色模式' : '切換至深色模式');
+  themeButton.innerHTML = isDark ? THEME_ICONS.dark : THEME_ICONS.light;
+  if (render && ratesVsHKD) renderCurrencies();
+}
+
+applyTheme(getSavedTheme(), { render: false });
+themeButton.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 
 document.getElementById('edit-btn').addEventListener('click', () => {
   isEditMode = !isEditMode;

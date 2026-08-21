@@ -14,35 +14,37 @@
   <link rel="dns-prefetch" href="https://flagcdn.com">
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
   <title>FX Terminal Pro</title>
+  <script>try{const theme=localStorage.getItem('fx_terminal_theme');if(theme==='dark'||(!theme&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark';}catch{}</script>
   <style>
-    :root { --bg-color:#fff; --terminal-bg:#fff; --primary:#1b1f23; --accent:#0366d6; --warn:#a97800; --error:#d73a49; --text-gray:#586069; --border:#e8e8e8; }
+    :root { --bg-color:#fff; --terminal-bg:#fff; --surface:#f6f6f6; --surface-hover:#fff; --surface-selected:#eef4fc; --primary:#1b1f23; --accent:#0366d6; --warn:#a97800; --error:#d73a49; --text-gray:#586069; --text-muted:#666; --border:#e8e8e8; }
+    html[data-theme="dark"] { color-scheme:dark; --bg-color:#0d1117; --terminal-bg:#0d1117; --surface:#161b22; --surface-hover:#21262d; --surface-selected:#1f334d; --primary:#f0f6fc; --accent:#58a6ff; --warn:#f2cc60; --error:#ff7b72; --text-gray:#b6c2cf; --text-muted:#8b949e; --border:#30363d; }
     * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
     body { min-width:320px; overflow-x:hidden; background:var(--bg-color); color:var(--primary); font-family:"Fira Code","SF Mono",ui-monospace,monospace; }
     button, select, input { font:inherit; }
     button:focus-visible, select:focus-visible, input:focus-visible { outline:3px solid rgba(3,102,214,.35); outline-offset:2px; }
     .terminal-window { display:flex; flex-direction:column; min-height:100vh; width:100%; background:var(--terminal-bg); }
-    .terminal-header { position:sticky; top:0; z-index:100; display:flex; align-items:center; gap:12px; padding:10px 16px; background:#f6f6f6; border-bottom:1px solid var(--border); }
+    .terminal-header { position:sticky; top:0; z-index:100; display:flex; align-items:center; gap:12px; padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--border); }
     .terminal-buttons { display:flex; flex:0 0 auto; gap:8px; }
     .terminal-btn { width:12px; height:12px; border-radius:50%; }
     .btn-red { background:var(--error); } .btn-yellow { background:#ffbd2e; } .btn-green { background:#27c93f; }
     .terminal-title { flex:1; min-width:0; margin:0; overflow:hidden; color:var(--text-gray); font-size:13px; font-weight:600; letter-spacing:.04em; text-overflow:ellipsis; white-space:nowrap; }
     .header-toolbar { position:relative; display:flex; flex:0 0 auto; align-items:center; gap:6px; }
     .icon-btn { display:inline-grid; width:34px; height:34px; place-items:center; padding:0; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--primary); cursor:pointer; }
-    .icon-btn:hover:not(:disabled), .icon-btn[aria-expanded="true"] { border-color:var(--border); background:#fff; }
+    .icon-btn:hover:not(:disabled), .icon-btn[aria-expanded="true"] { border-color:var(--border); background:var(--surface-hover); }
     .icon-btn.editing { border-color:var(--error); background:var(--error); color:#fff; }
     .icon-btn:disabled { opacity:.5; cursor:wait; }
     .icon-btn svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; stroke-width:1.8; }
     .source-control { position:relative; }
-    .source-menu { position:absolute; top:calc(100% + 7px); right:0; z-index:120; display:none; min-width:190px; padding:6px; border:1px solid var(--border); border-radius:9px; background:#fff; box-shadow:0 10px 26px rgba(0,0,0,.14); }
+    .source-menu { position:absolute; top:calc(100% + 7px); right:0; z-index:120; display:none; min-width:190px; padding:6px; border:1px solid var(--border); border-radius:9px; background:var(--surface); box-shadow:0 10px 26px rgba(0,0,0,.24); }
     .source-menu.active { display:block; }
     .source-option { display:flex; width:100%; align-items:center; gap:9px; padding:9px 10px; border:0; border-radius:6px; background:transparent; color:var(--primary); cursor:pointer; font-size:11px; text-align:left; }
-    .source-option:hover, .source-option[aria-current="true"] { background:#eef4fc; color:var(--accent); }
+    .source-option:hover, .source-option[aria-current="true"] { background:var(--surface-selected); color:var(--accent); }
     .source-option svg { flex:0 0 auto; width:16px; height:16px; fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; stroke-width:1.8; }
     .terminal-body { flex:1; }
-    .app-footer { margin-top:auto; padding:10px 16px 12px; border-top:1px solid var(--border); background:#f6f6f6; text-align:center; }
-    .update-time { min-height:16px; color:#666; font-size:11px; line-height:1.45; }
+    .app-footer { margin-top:auto; padding:10px 16px 12px; border-top:1px solid var(--border); background:var(--surface); text-align:center; }
+    .update-time { min-height:16px; color:var(--text-muted); font-size:11px; line-height:1.45; }
     .update-time.error { color:var(--error); } .update-time.cached { color:var(--warn); }
-    .reference-note { margin-top:3px; color:#777; font-size:10px; line-height:1.45; }
+    .reference-note { margin-top:3px; color:var(--text-muted); font-size:10px; line-height:1.45; }
     .btn { min-height:34px; padding:8px 12px; border:1px solid var(--primary); border-radius:4px; background:transparent; color:var(--primary); cursor:pointer; font-size:11px; font-weight:600; }
     .btn:hover:not(:disabled) { background:#f6f8fa; } .btn:disabled { opacity:.5; cursor:wait; }
     .btn.editing { border-color:var(--error); background:var(--error); color:#fff; }
@@ -81,6 +83,19 @@
     .currency-options { flex:1; overflow-y:auto; }
     .currency-option { display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; }
     .currency-option:hover { background:#f6f8fa; } .currency-option img { width:32px; height:32px; margin-right:12px; border:1px solid var(--border); border-radius:50%; }
+    html[data-theme="dark"] .currency-card { box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); }
+    html[data-theme="dark"] .currency-code, html[data-theme="dark"] .amount-input { color:#f0f6fc; }
+    html[data-theme="dark"] .currency-name { color:rgba(240,246,252,.78); }
+    html[data-theme="dark"] .drag-handle { color:rgba(240,246,252,.72); }
+    html[data-theme="dark"] .pin-btn { border-color:rgba(240,246,252,.32); background:rgba(13,17,23,.4); color:#d0d7de; }
+    html[data-theme="dark"] .calc-container, html[data-theme="dark"] #add-modal .modal-content, html[data-theme="dark"] .currency-option { background:var(--surface) !important; }
+    html[data-theme="dark"] .calc-header, html[data-theme="dark"] .calc-btn { background:var(--surface-hover); }
+    html[data-theme="dark"] .calc-btn { color:var(--primary); }
+    html[data-theme="dark"] .calc-btn.op { background:var(--surface-selected); color:var(--accent); }
+    html[data-theme="dark"] .currency-option { border-color:var(--border); }
+    html[data-theme="dark"] .currency-option strong { color:var(--primary) !important; }
+    html[data-theme="dark"] .currency-option small, html[data-theme="dark"] #calc-expr { color:var(--text-muted) !important; }
+    html[data-theme="dark"] .currency-option:hover, html[data-theme="dark"] .btn:hover:not(:disabled) { background:var(--surface-hover); }
     @media (max-width:440px) { .terminal-header { gap:8px; padding:9px 12px; } .terminal-buttons { gap:5px; } .terminal-btn { width:10px; height:10px; } .terminal-title { font-size:11px; } .header-toolbar { gap:2px; } .icon-btn { width:32px; height:32px; } .currency-card { height:40px; } .currency-name { font-size:9px; } }
   </style>
 </head>
@@ -90,6 +105,7 @@
       <div class="terminal-buttons" aria-hidden="true"><span class="terminal-btn btn-red"></span><span class="terminal-btn btn-yellow"></span><span class="terminal-btn btn-green"></span></div>
       <h1 class="terminal-title">FX PRO TERMINAL</h1>
       <nav class="header-toolbar" aria-label="匯率工具列">
+        <button class="icon-btn" id="theme-btn" type="button" aria-label="切換至深色模式" aria-pressed="false" title="切換至深色模式"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8 8 0 0 1 9.8 3.5 8 8 0 1 0 20.5 14.2z"/></svg></button>
         <button class="icon-btn" id="refresh-btn" type="button" aria-label="重新整理匯率" title="重新整理匯率"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2 5.3"/><path d="M20 4v7h-7"/></svg></button>
         <button class="icon-btn" id="edit-btn" type="button" aria-label="編輯貨幣清單" title="編輯貨幣清單"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16z"/><path d="m14.5 6.5 3 3"/></svg></button>
         <button class="icon-btn" id="add-btn" type="button" aria-label="新增貨幣" title="新增貨幣"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
