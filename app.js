@@ -405,8 +405,12 @@ function updateCalc() {
   }
 }
 
-const apiSelector = document.getElementById('api-selector');
 const refreshButton = document.getElementById('refresh-btn');
+const sourceControl = document.querySelector('.source-control');
+const sourceMenuButton = document.getElementById('source-menu-btn');
+const sourceMenu = document.getElementById('source-menu');
+const sourceOptions = [...sourceMenu.querySelectorAll('.source-option')];
+let selectedApiType = getSavedApiType();
 
 document.getElementById('edit-btn').addEventListener('click', () => {
   isEditMode = !isEditMode;
@@ -469,24 +473,54 @@ function hydrateCachedRates() {
   return true;
 }
 
-apiSelector.value = getSavedApiType();
-apiSelector.addEventListener('change', () => initialize({ savePreference: true }));
+function setSourceMenuOpen(isOpen) {
+  sourceMenu.classList.toggle('active', isOpen);
+  sourceMenuButton.setAttribute('aria-expanded', String(isOpen));
+}
+
+function updateSelectedSourceOption() {
+  sourceOptions.forEach((option) => {
+    const isSelected = option.dataset.apiType === selectedApiType;
+    option.setAttribute('aria-current', String(isSelected));
+    option.disabled = isRefreshing;
+  });
+  const selectedLabel = sourceOptions.find((option) => option.dataset.apiType === selectedApiType)?.textContent.trim() || '匯率來源';
+  sourceMenuButton.setAttribute('aria-label', `匯率來源：${selectedLabel}`);
+  sourceMenuButton.setAttribute('title', `匯率來源：${selectedLabel}`);
+}
+
+updateSelectedSourceOption();
+sourceMenuButton.addEventListener('click', () => setSourceMenuOpen(!sourceMenu.classList.contains('active')));
+sourceOptions.forEach((option) => option.addEventListener('click', () => {
+  selectedApiType = option.dataset.apiType;
+  localStorage.setItem(STORAGE_KEYS.api, selectedApiType);
+  updateSelectedSourceOption();
+  setSourceMenuOpen(false);
+  initialize();
+}));
+document.addEventListener('click', (event) => {
+  if (!sourceControl.contains(event.target)) setSourceMenuOpen(false);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') setSourceMenuOpen(false);
+});
 refreshButton.addEventListener('click', () => initialize());
 
-async function initialize({ savePreference = false } = {}) {
+async function initialize() {
   if (isRefreshing) return;
   isRefreshing = true;
-  const apiType = apiSelector.value;
+  const apiType = selectedApiType;
   refreshButton.disabled = true;
-  apiSelector.disabled = true;
-  if (savePreference) localStorage.setItem(STORAGE_KEYS.api, apiType);
+  sourceMenuButton.disabled = true;
+  updateSelectedSourceOption();
   try {
     const rates = await fetchRates(apiType);
     if (rates && !updateRenderedAmounts()) renderCurrencies();
   } finally {
     isRefreshing = false;
     refreshButton.disabled = false;
-    apiSelector.disabled = false;
+    sourceMenuButton.disabled = false;
+    updateSelectedSourceOption();
   }
 }
 

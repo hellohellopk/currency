@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fx-terminal-pwa-v4';
+const CACHE_NAME = 'fx-terminal-pwa-v6';
 const APP_SHELL = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const APP_SHELL = [
   './icons/icon-512.svg',
   './icons/icon-maskable.svg'
 ];
+const NETWORK_FIRST_PATHS = new Set(APP_SHELL.slice(0, 3).map((asset) => new URL(asset, self.registration.scope).pathname));
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -27,22 +28,32 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function networkFirst(request) {
+  return fetch(request)
+    .then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        const cacheKey = request.mode === 'navigate' ? './index.html' : request;
+        caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, copy));
+      }
+      return response;
+    })
+    .catch(async () => {
+      const cached = await caches.match(request);
+      if (cached) return cached;
+      if (request.mode === 'navigate') return caches.match('./index.html');
+      return Response.error();
+    });
+}
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
 
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
+  if (event.request.mode === 'navigate' || NETWORK_FIRST_PATHS.has(requestUrl.pathname)) {
+    event.respondWith(networkFirst(event.request));
     return;
   }
 

@@ -22,10 +22,15 @@ try {
 expect(indexHtml.includes('<script src="./app.js"></script>'), '首頁未載入獨立主程式');
 expect(indexHtml.includes('currency-list'), '首頁缺少匯率清單容器');
 expect(indexHtml.includes('refresh-btn'), '首頁缺少手動重新整理按鈕');
+expect(indexHtml.includes('header-toolbar') && indexHtml.includes('icon-btn'), '首頁缺少頂部圖示工具列');
+expect(indexHtml.includes('source-menu-btn') && indexHtml.includes('source-menu'), '首頁缺少圖示化匯率來源選單');
+expect(!indexHtml.includes('api-selector'), '首頁仍保留舊的匯率來源下拉選單');
 expect(indexHtml.includes('display=swap'), '字型未設定非阻塞顯示策略');
 expect(indexHtml.includes('dns-prefetch') && indexHtml.includes('flagcdn.com'), '首頁缺少國旗網域預先解析');
 expect(appJs.includes('CARD_COLORS'), '找不到彩色幣別卡片設定');
 expect(appJs.includes('startManualDrag'), '找不到拖曳排序邏輯');
+expect(appJs.includes('sourceMenuButton') && appJs.includes('setSourceMenuOpen'), '找不到圖示化匯率來源選單邏輯');
+expect(!appJs.includes('apiSelector'), '主程式仍使用已移除的來源下拉選單');
 expect(appJs.includes('evaluateExpression'), '找不到受限計算器解析器');
 expect(!appJs.includes('Function('), '計算器仍使用動態 Function 執行算式');
 expect(appJs.includes('fx_terminal_rate_cache'), '找不到匯率離線快取設定');
@@ -44,8 +49,9 @@ for (const icon of manifest.icons || []) {
   expect(existsSync(iconPath), `找不到圖示檔案：${icon.src}`);
 }
 
-expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v4'"), 'Service Worker 快取版本未更新');
+expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v6'"), 'Service Worker 快取版本未更新');
 expect(serviceWorker.includes('./app.js'), 'Service Worker 未預快取新版主程式');
+expect(serviceWorker.includes('NETWORK_FIRST_PATHS') && serviceWorker.includes('networkFirst'), 'Service Worker 未對核心更新資產採取網路優先策略');
 expect(serviceWorker.includes('APP_SHELL'), 'Service Worker 缺少 App Shell 快取設定');
 
 if (failures.length) {
