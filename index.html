@@ -67,7 +67,10 @@
         .terminal-body { padding: 0; flex: 1; }
 
         .header-content { padding: 16px 16px 8px 16px; }
-        .update-time { font-size: 11px; color: #666; margin-bottom: 12px; }
+        .update-time { font-size: 11px; color: #999; margin-bottom: 5px; line-height: 1.45; }
+        .update-time.error { color: var(--error-red); }
+        .update-time.cached { color: var(--warn-yellow); }
+        .reference-note { font-size: 10px; color: #777; line-height: 1.45; }
 
         .controls {
             display: flex;
@@ -216,13 +219,15 @@
 
         <div class="terminal-body">
             <div class="header-content">
-                <div class="update-time" id="update-time">數據同步中...</div>
+                <div class="update-time" id="update-time" role="status" aria-live="polite">正在同步匯率資料…</div>
+                <div class="reference-note">匯率僅供參考；實際銀行或換匯商報價可能不同。</div>
             </div>
             <div class="controls">
-                <button class="btn" id="edit-btn">Edit</button>
-                <button class="btn" id="add-btn">+ Add</button>
-                <button class="btn" id="install-btn" hidden>Install</button>
-                <select class="api-selector" id="api-selector">
+                <button class="btn" id="refresh-btn" type="button">重新整理</button>
+                <button class="btn" id="edit-btn" type="button">編輯</button>
+                <button class="btn" id="add-btn" type="button">＋ 新增</button>
+                <button class="btn" id="install-btn" type="button" hidden>安裝</button>
+                <select class="api-selector" id="api-selector" aria-label="選擇匯率資料來源">
                     <option value="currencyapi">Currency-API (免費/200+貨幣)</option>
                     <option value="openerapi">Open-ER-API (免費/官方)</option>
                 </select>
@@ -258,7 +263,7 @@
                     <button class="calc-btn op" onclick="calcInput('.')">.</button>
                     <button class="calc-btn" onclick="calcInput('0')">0</button>
                     <button class="calc-btn" onclick="calcInput('00')">00</button>
-                    <button class="calc-btn done" onclick="calcAction('DONE')">確認</button>
+                    <button class="calc-btn done" type="button" onclick="calcAction('DONE')">確認</button>
                 </div>
                 <button class="btn" style="margin-top:20px; border-color:var(--error-red); color:var(--error-red); width:100%; padding:15px; height:50px;" onclick="closeModal('calc-modal')">取消</button>
             </div>
@@ -268,8 +273,8 @@
     <div class="modal" id="add-modal">
         <div class="modal-content" style="background: #1E1E1E;">
             <div class="terminal-header" style="position:sticky; top:0;">
-                <div class="terminal-title">Select Currency</div>
-                <button class="btn" style="margin-left:auto; border-color:var(--error-red); color:var(--error-red);" id="modal-close">Close</button>
+                <div class="terminal-title">選擇貨幣</div>
+                <button class="btn" type="button" style="margin-left:auto; border-color:var(--error-red); color:var(--error-red);" id="modal-close">關閉</button>
             </div>
             <div id="currency-options" style="overflow-y:auto; flex:1; width:100%;"></div>
         </div>
@@ -337,42 +342,140 @@
 
         const defaultCurrencies = ['HKD', 'USD', 'JPY', 'INR', 'TRY', 'CNY', 'TWD', 'NGN', 'EUR'];
 
-        let displayedCurrencies = JSON.parse(localStorage.getItem('fx_terminal_list')) || [...defaultCurrencies];
+        const STORAGE_KEYS = {
+            currencies: 'fx_terminal_list',
+            api: 'fx_terminal_api',
+            rateCache: 'fx_terminal_rate_cache'
+        };
+        const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND']);
 
+        function loadDisplayedCurrencies() {
+            try {
+                const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.currencies));
+                if (!Array.isArray(stored)) return [...defaultCurrencies];
+                const validCodes = [...new Set(stored.filter((code) => allCurrencyInfo[code]))];
+                return validCodes.length ? validCodes : [...defaultCurrencies];
+            } catch {
+                return [...defaultCurrencies];
+            }
+        }
+
+        let displayedCurrencies = loadDisplayedCurrencies();
         let currentRates = null;
         let ratesVsHKD = null;
         let currentBaseHKD = 1000;
         let isEditMode = false;
-        let calcVal = "0";
-        let calcTarget = "HKD";
+        let isRefreshing = false;
+        let calcVal = '0';
+        let calcTarget = 'HKD';
 
         function saveSettings() {
-            localStorage.setItem('fx_terminal_list', JSON.stringify(displayedCurrencies));
+            localStorage.setItem(STORAGE_KEYS.currencies, JSON.stringify(displayedCurrencies));
         }
 
-        async function fetchRates(apiType) {
-            const config = API_CONFIGS[apiType];
+        function setUpdateStatus(message, state = '') {
+            const status = document.getElementById('update-time');
+            status.textContent = message;
+            status.className = `update-time ${state}`.trim();
+        }
+
+        function getCachedRates() {
             try {
-                const response = await fetch(config.buildUrl(config.key, Object.keys(allCurrencyInfo)));
-                const data = await response.json();
-                const parsed = config.parseResponse(data);
-                document.getElementById('update-time').textContent = `[${config.name}] Last updated: ${new Date(parsed.timestamp * 1000).toLocaleString()}`;
-                currentRates = parsed.rates;
-                const hkdPerUsd = currentRates['HKD'];
-                ratesVsHKD = {};
-                for (const code in currentRates) ratesVsHKD[code] = currentRates[code] / hkdPerUsd;
-                ratesVsHKD['HKD'] = 1;
-                return ratesVsHKD;
-            } catch (error) {
-                document.getElementById('update-time').textContent = '[ERROR] Failed to load rates';
+                const cached = JSON.parse(localStorage.getItem(STORAGE_KEYS.rateCache));
+                if (!cached || typeof cached !== 'object' || !cached.rates || !Number.isFinite(cached.updatedAt)) return null;
+                return cached;
+            } catch {
                 return null;
             }
         }
 
+        function saveCachedRates(rates, apiType, updatedAt) {
+            localStorage.setItem(STORAGE_KEYS.rateCache, JSON.stringify({
+                rates,
+                apiType,
+                updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now()
+            }));
+        }
+
+        function buildRatesVsHKD(parsed) {
+            if (!parsed || !parsed.success || !parsed.rates || typeof parsed.rates !== 'object') {
+                throw new Error('匯率資料格式無效');
+            }
+
+            const hkdPerUsd = Number(parsed.rates.HKD);
+            if (!Number.isFinite(hkdPerUsd) || hkdPerUsd <= 0) {
+                throw new Error('缺少有效的 HKD 匯率');
+            }
+
+            const normalizedRates = {};
+            for (const [code, rate] of Object.entries(parsed.rates)) {
+                const numericRate = Number(rate);
+                if (Number.isFinite(numericRate) && numericRate > 0) {
+                    normalizedRates[code.toUpperCase()] = numericRate / hkdPerUsd;
+                }
+            }
+            normalizedRates.HKD = 1;
+
+            if (!Object.keys(normalizedRates).some((code) => allCurrencyInfo[code])) {
+                throw new Error('沒有可用的目標貨幣匯率');
+            }
+            return normalizedRates;
+        }
+
+        function formatUpdatedAt(timestamp) {
+            return new Date(timestamp).toLocaleString('zh-Hant', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+        }
+
+        async function fetchRates(apiType) {
+            const config = API_CONFIGS[apiType];
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), 10000);
+            setUpdateStatus(`[${config.name}] 正在同步最新匯率…`);
+
+            try {
+                const response = await fetch(config.buildUrl(config.key, Object.keys(allCurrencyInfo)), {
+                    signal: controller.signal,
+                    cache: 'no-store'
+                });
+                if (!response.ok) throw new Error(`匯率服務回應 ${response.status}`);
+
+                const parsed = config.parseResponse(await response.json());
+                const normalizedRates = buildRatesVsHKD(parsed);
+                const updatedAt = Number.isFinite(parsed.timestamp) ? parsed.timestamp * 1000 : Date.now();
+
+                currentRates = parsed.rates;
+                ratesVsHKD = normalizedRates;
+                saveCachedRates(normalizedRates, apiType, updatedAt);
+                setUpdateStatus(`[${config.name}] 最後更新：${formatUpdatedAt(updatedAt)}`);
+                return normalizedRates;
+            } catch (error) {
+                const cached = getCachedRates();
+                if (cached) {
+                    ratesVsHKD = cached.rates;
+                    setUpdateStatus(`無法取得最新匯率；正在使用 ${formatUpdatedAt(cached.updatedAt)} 的已快取資料。`, 'cached');
+                    return ratesVsHKD;
+                }
+
+                const reason = error.name === 'AbortError' ? '連線逾時' : '匯率資料暫時無法載入';
+                setUpdateStatus(`${reason}。請稍後重新整理。`, 'error');
+                return null;
+            } finally {
+                window.clearTimeout(timeoutId);
+            }
+        }
+
         function formatNumberWithCommas(num, decimals = 2) {
+            if (!Number.isFinite(num)) return '—';
             const parts = num.toFixed(decimals).split('.');
             parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
             return parts.join('.');
+        }
+
+        function formatCurrencyAmount(code, amount) {
+            return formatNumberWithCommas(amount, ZERO_DECIMAL_CURRENCIES.has(code) ? 0 : 2);
         }
 
         function renderCurrencies() {
@@ -381,9 +484,10 @@
 
             displayedCurrencies.forEach((code) => {
                 const info = allCurrencyInfo[code];
-                if (!info || !ratesVsHKD[code]) return;
+                const exchangeRate = Number(ratesVsHKD?.[code]);
+                if (!info || !Number.isFinite(exchangeRate) || exchangeRate <= 0) return;
 
-                const amount = currentBaseHKD * ratesVsHKD[code];
+                const amount = currentBaseHKD * exchangeRate;
                 const isFixed = defaultCurrencies.includes(code);
 
                 const card = document.createElement('div');
@@ -397,7 +501,7 @@
                         ${!isFixed ? `<button class="delete-btn" data-code="${code}">×</button>` : ''}
                     </div>
                     <div class="flag-icon">
-                        <img src="https://flagcdn.com/w160/${info.code}.png" alt="${code}" />
+                        <img src="https://flagcdn.com/w160/${info.code}.png" alt="${code} 國旗" loading="lazy" />
                     </div>
                     <div class="currency-info">
                         <div class="currency-code">${code}</div>
@@ -405,8 +509,8 @@
                     </div>
                     <div class="currency-value">
                         <input type="text" id="input-${code}" class="amount-input"
-                               value="${info.symbol} ${formatNumberWithCommas(amount)}" readonly />
-                        <div class="rate">${code === 'HKD' ? '' : `1 HKD = ${formatNumberWithCommas(ratesVsHKD[code], 4)} ${code}`}</div>
+                               value="${info.symbol} ${formatCurrencyAmount(code, amount)}" readonly aria-label="${code} 金額" />
+                        <div class="rate">${code === 'HKD' ? '' : `1 HKD = ${formatNumberWithCommas(exchangeRate, 4)} ${code}`}</div>
                     </div>
                 `;
 
@@ -422,7 +526,7 @@
                 input.onclick = (e) => {
                     if (isEditMode) return;
                     e.stopPropagation();
-                    openCalc(code, parseFloat(input.value.replace(/[^\d.-]/g, '')) || 0);
+                    openCalc(code, amount);
                 };
 
                 const handle = card.querySelector('.drag-handle');
@@ -520,7 +624,7 @@
             currentBaseHKD = changedAmount / ratesVsHKD[changedCode];
             displayedCurrencies.forEach(code => {
                 const input = document.getElementById(`input-${code}`);
-                if (input) input.value = `${allCurrencyInfo[code].symbol} ${formatNumberWithCommas(currentBaseHKD * ratesVsHKD[code])}`;
+                if (input) input.value = `${allCurrencyInfo[code].symbol} ${formatCurrencyAmount(code, currentBaseHKD * ratesVsHKD[code])}`;
             });
         }
 
@@ -539,34 +643,89 @@
             updateCalc();
         }
 
-        function calcAction(a) {
-            if (a === 'AC') calcVal = "0";
-            else if (a === 'DEL') calcVal = calcVal.length > 1 ? calcVal.slice(0, -1) : "0";
-            else if (a === 'DONE') {
+        function evaluateExpression(expression) {
+            const normalized = expression.replace(/×/g, '*').replace(/÷/g, '/').replace(/\s/g, '');
+            if (!normalized || !/^[\d.+\-*/]+$/.test(normalized)) throw new Error('無效算式');
+
+            const tokens = normalized.match(/(?:\d+\.?\d*|\.\d+)|[+\-*/]/g) || [];
+            if (tokens.join('') !== normalized) throw new Error('無效算式');
+            let position = 0;
+
+            function parsePrimary() {
+                const token = tokens[position];
+                if (token === '+' || token === '-') {
+                    position += 1;
+                    const value = parsePrimary();
+                    return token === '-' ? -value : value;
+                }
+                if (token && /^(?:\d+\.?\d*|\.\d+)$/.test(token)) {
+                    position += 1;
+                    return Number(token);
+                }
+                throw new Error('無效算式');
+            }
+
+            function parseProduct() {
+                let value = parsePrimary();
+                while (tokens[position] === '*' || tokens[position] === '/') {
+                    const operator = tokens[position++];
+                    const right = parsePrimary();
+                    if (operator === '/' && right === 0) throw new Error('不可除以零');
+                    value = operator === '*' ? value * right : value / right;
+                }
+                return value;
+            }
+
+            function parseSum() {
+                let value = parseProduct();
+                while (tokens[position] === '+' || tokens[position] === '-') {
+                    const operator = tokens[position++];
+                    const right = parseProduct();
+                    value = operator === '+' ? value + right : value - right;
+                }
+                return value;
+            }
+
+            const result = parseSum();
+            if (position !== tokens.length || !Number.isFinite(result)) throw new Error('無效結果');
+            return result;
+        }
+
+        function calcAction(action) {
+            if (action === 'AC') calcVal = '0';
+            else if (action === 'DEL') calcVal = calcVal.length > 1 ? calcVal.slice(0, -1) : '0';
+            else if (action === 'DONE') {
                 try {
-                    const result = Function(`return (${calcVal.replace(/×/g, '*').replace(/÷/g, '/')})`)();
-                    if (isFinite(result)) { updateAllAmounts(calcTarget, result); closeModal('calc-modal'); }
-                    else calcVal = "Error";
-                } catch (e) { calcVal = "Error"; updateCalc(); setTimeout(() => calcVal = "0", 500); }
+                    updateAllAmounts(calcTarget, evaluateExpression(calcVal));
+                    closeModal('calc-modal');
+                } catch {
+                    calcVal = 'Error';
+                    updateCalc();
+                    window.setTimeout(() => { calcVal = '0'; updateCalc(); }, 700);
+                    return;
+                }
             }
             updateCalc();
         }
 
         function updateCalc() {
             document.getElementById('calc-display').textContent = calcVal;
-            const expr = calcVal.replace(/×/g, '*').replace(/÷/g, '/');
-            if (/[\+\-\*\/]/.test(expr)) {
-                try {
-                    const preview = Function(`return (${expr})`)();
-                    document.getElementById('calc-expr').textContent = isNaN(preview) ? "" : `≈ ${preview.toLocaleString()}`;
-                } catch (e) {}
-            } else document.getElementById('calc-expr').textContent = "";
+            if (!/[\+\-×÷*/]/.test(calcVal) || calcVal === 'Error') {
+                document.getElementById('calc-expr').textContent = '';
+                return;
+            }
+            try {
+                const preview = evaluateExpression(calcVal);
+                document.getElementById('calc-expr').textContent = `≈ ${preview.toLocaleString()}`;
+            } catch {
+                document.getElementById('calc-expr').textContent = '';
+            }
         }
 
         document.getElementById('edit-btn').onclick = () => {
             isEditMode = !isEditMode;
             const btn = document.getElementById('edit-btn');
-            btn.textContent = isEditMode ? 'Done' : 'Edit';
+            btn.textContent = isEditMode ? '完成' : '編輯';
             btn.classList.toggle('editing');
             renderCurrencies();
         };
@@ -579,7 +738,7 @@
                 if (!displayedCurrencies.includes(code) && ratesVsHKD[code]) {
                     const option = document.createElement('div');
                     option.className = 'currency-option';
-                    option.innerHTML = `<img src="https://flagcdn.com/w80/${allCurrencyInfo[code].code}.png" />
+                    option.innerHTML = `<img src="https://flagcdn.com/w80/${allCurrencyInfo[code].code}.png" alt="${code} 國旗" loading="lazy" />
                                        <div><div style="font-weight:bold;color:white;">${code}</div><div style="font-size:12px;color:#999;">${allCurrencyInfo[code].name}</div></div>`;
                     option.onclick = () => {
                         displayedCurrencies.push(code);
@@ -593,12 +752,35 @@
             modal.classList.add('active');
         };
 
-        document.getElementById('modal-close').onclick = () => closeModal('add-modal');
-        document.getElementById('api-selector').onchange = initialize;
+        const apiSelector = document.getElementById('api-selector');
+        const refreshBtn = document.getElementById('refresh-btn');
 
-        async function initialize() {
-            const rates = await fetchRates(document.getElementById('api-selector').value);
-            if (rates) renderCurrencies();
+        function getSavedApiType() {
+            const savedApiType = localStorage.getItem(STORAGE_KEYS.api);
+            return API_CONFIGS[savedApiType] ? savedApiType : 'currencyapi';
+        }
+
+        document.getElementById('modal-close').onclick = () => closeModal('add-modal');
+        apiSelector.value = getSavedApiType();
+        apiSelector.onchange = () => initialize({ savePreference: true });
+        refreshBtn.onclick = () => initialize();
+
+        async function initialize({ savePreference = false } = {}) {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            const apiType = apiSelector.value;
+            refreshBtn.disabled = true;
+            apiSelector.disabled = true;
+
+            if (savePreference) localStorage.setItem(STORAGE_KEYS.api, apiType);
+            try {
+                const rates = await fetchRates(apiType);
+                if (rates) renderCurrencies();
+            } finally {
+                isRefreshing = false;
+                refreshBtn.disabled = false;
+                apiSelector.disabled = false;
+            }
         }
 
 

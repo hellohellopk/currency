@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-labelledby="title desc">
+  <title id="title">FX Terminal</title>
+  <desc id="desc">深色背景上的綠色匯率箭頭與貨幣符號</desc>
+  <rect width="192" height="192" rx="38" fill="#121212"/>
+  <rect x="16" y="16" width="160" height="160" rx="28" fill="#1e1e1e" stroke="#00ff00" stroke-width="4"/>
+  <path d="M50 74h70l-14-14 9-9 30 30-30 30-9-9 14-14H50z" fill="#00ff00"/>
+  <path d="M142 118H72l14 14-9 9-30-30 30-30 9 9-14 14h70z" fill="#00d4ff"/>
+  <circle cx="96" cy="96" r="18" fill="#121212" stroke="#ffcc00" stroke-width="4"/>
+  <path d="M103 85c-2-2-5-3-8-3-5 0-9 3-9 7 0 9 18 5 18 14 0 4-4 7-9 7-4 0-7-1-10-4M95 77v38" fill="none" stroke="#ffcc00" stroke-width="4" stroke-linecap="round"/>
+</svg>

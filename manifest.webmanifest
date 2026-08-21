@@ -1,7 +1,10 @@
 {
-  "name": "FX Pro Terminal",
+  "id": "./",
+  "name": "FX Pro Terminal 匯率換算器",
   "short_name": "FX Terminal",
-  "description": "Currency converter with calculator",
+  "description": "具備計算機與離線支援的匯率換算器",
+  "lang": "zh-Hant",
+  "dir": "ltr",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
