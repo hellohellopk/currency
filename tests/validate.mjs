@@ -22,11 +22,18 @@ try {
 expect(indexHtml.includes('<script src="./app.js"></script>'), '首頁未載入獨立主程式');
 expect(indexHtml.includes('currency-list'), '首頁缺少匯率清單容器');
 expect(indexHtml.includes('refresh-btn'), '首頁缺少手動重新整理按鈕');
+expect(indexHtml.includes('display=swap'), '字型未設定非阻塞顯示策略');
+expect(indexHtml.includes('dns-prefetch') && indexHtml.includes('flagcdn.com'), '首頁缺少國旗網域預先解析');
 expect(appJs.includes('CARD_COLORS'), '找不到彩色幣別卡片設定');
 expect(appJs.includes('startManualDrag'), '找不到拖曳排序邏輯');
 expect(appJs.includes('evaluateExpression'), '找不到受限計算器解析器');
 expect(!appJs.includes('Function('), '計算器仍使用動態 Function 執行算式');
 expect(appJs.includes('fx_terminal_rate_cache'), '找不到匯率離線快取設定');
+expect(appJs.includes('RATE_CACHE_MAX_AGE_MS'), '找不到匯率快取有效期限設定');
+expect(appJs.includes('hydrateCachedRates'), '找不到快取預先渲染流程');
+expect(appJs.includes('DocumentFragment') && appJs.includes('replaceChildren'), '找不到批次 DOM 渲染策略');
+expect(appJs.includes('requestAnimationFrame'), '找不到拖曳動畫幀節流');
+expect(appJs.includes('w40') && !appJs.includes('w160'), '國旗圖片尺寸尚未最佳化');
 expect(appJs.includes('AbortController'), '找不到匯率請求逾時控制');
 expect(!/(fxr_live_|app_id=|api_key=|0d5edd3dbe|219fb31)/.test(appJs), '主程式不應包含資料服務金鑰');
 expect(manifest.lang === 'zh-Hant', 'Manifest 未設定繁體中文語言');
@@ -37,7 +44,7 @@ for (const icon of manifest.icons || []) {
   expect(existsSync(iconPath), `找不到圖示檔案：${icon.src}`);
 }
 
-expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v3'"), 'Service Worker 快取版本未更新');
+expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v4'"), 'Service Worker 快取版本未更新');
 expect(serviceWorker.includes('./app.js'), 'Service Worker 未預快取新版主程式');
 expect(serviceWorker.includes('APP_SHELL'), 'Service Worker 缺少 App Shell 快取設定');
 
@@ -47,4 +54,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('靜態驗證通過：新版頁面、主程式、公開資料來源與 PWA 設定均符合預期。');
+console.log('靜態驗證通過：新版頁面、快取預先渲染、批次 DOM 更新、拖曳節流與 PWA 設定均符合預期。');

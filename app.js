@@ -40,6 +40,7 @@ const CARD_COLORS = [
 const defaultCurrencies = ['HKD', 'USD', 'EUR', 'JPY', 'GBP', 'CNY', 'AUD', 'CAD', 'CHF', 'SGD', 'SEK', 'KRW', 'NOK', 'NZD', 'INR', 'MXN', 'TWD', 'ZAR', 'BRL', 'THB'];
 const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND']);
 const STORAGE_KEYS = { currencies: 'fx_terminal_list', api: 'fx_terminal_api', rateCache: 'fx_terminal_rate_cache' };
+const RATE_CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 let displayedCurrencies = loadDisplayedCurrencies();
 let ratesVsHKD = null;
@@ -77,11 +78,16 @@ function setUpdateStatus(message, state = '') {
   status.className = `update-time ${state}`.trim();
 }
 
+function isValidRateMap(rates) {
+  return rates && typeof rates === 'object' && Number.isFinite(Number(rates.HKD)) && Number(rates.HKD) > 0;
+}
+
 function getCachedRates() {
   try {
     const cached = JSON.parse(localStorage.getItem(STORAGE_KEYS.rateCache));
-    if (!cached || typeof cached !== 'object' || !cached.rates || !Number.isFinite(cached.updatedAt)) return null;
-    return cached;
+    if (!cached || typeof cached !== 'object' || !isValidRateMap(cached.rates) || !Number.isFinite(cached.updatedAt)) return null;
+    const ageMs = Math.max(0, Date.now() - cached.updatedAt);
+    return { ...cached, ageMs, isExpired: ageMs > RATE_CACHE_MAX_AGE_MS };
   } catch {
     return null;
   }
@@ -131,7 +137,8 @@ async function fetchRates(apiType) {
     const cached = getCachedRates();
     if (cached) {
       ratesVsHKD = cached.rates;
-      setUpdateStatus(`無法取得最新匯率；正在使用 ${formatUpdatedAt(cached.updatedAt)} 的已快取資料。`, 'cached');
+      const freshness = cached.isExpired ? '，資料已超過 48 小時' : '';
+      setUpdateStatus(`無法取得最新匯率；正在使用 ${formatUpdatedAt(cached.updatedAt)} 的已快取資料${freshness}。`, cached.isExpired ? 'error' : 'cached');
       return ratesVsHKD;
     }
     setUpdateStatus(error.name === 'AbortError' ? '連線逾時。請稍後重新整理。' : '匯率資料暫時無法載入。請稍後重新整理。', 'error');
@@ -152,61 +159,81 @@ function formatCurrencyAmount(code, amount) {
   return formatNumberWithCommas(amount, ZERO_DECIMAL_CURRENCIES.has(code) ? 0 : 2);
 }
 
-function renderCurrencies() {
-  const listElement = document.getElementById('currency-list');
-  listElement.innerHTML = '';
+const currencyListElement = document.getElementById('currency-list');
 
-  displayedCurrencies.forEach((code) => {
-    const info = allCurrencyInfo[code];
-    const exchangeRate = Number(ratesVsHKD?.[code]);
-    if (!info || !Number.isFinite(exchangeRate) || exchangeRate <= 0) return;
-
-    const amount = currentBaseHKD * exchangeRate;
-    const cardColor = getCardColor(code);
-    const card = document.createElement('article');
-    card.className = 'currency-card';
-    card.dataset.code = code;
-    card.style.background = cardColor.bg;
-    card.style.borderColor = cardColor.border;
-    if (isEditMode) card.classList.add('editing');
-
-    card.innerHTML = `
-      <div class="card-actions-left">
-        <span class="drag-handle" role="button" tabindex="0" aria-label="拖曳排序 ${code}">⠿</span>
-        ${code !== 'HKD' ? `<button class="delete-btn" type="button" aria-label="移除 ${code}">×</button>` : ''}
-      </div>
-      <div class="flag-icon"><img src="https://flagcdn.com/w160/${info.code}.png" alt="${code} 國旗" loading="lazy"></div>
-      <div class="currency-info"><div class="currency-code">${code}</div><div class="currency-watermark" style="color:${cardColor.watermark}">${info.name}</div></div>
-      <div class="currency-value"><input type="text" id="input-${code}" class="amount-input" value="${info.symbol} ${formatCurrencyAmount(code, amount)}" readonly aria-label="${code} 金額"></div>`;
-
-    const deleteButton = card.querySelector('.delete-btn');
-    if (deleteButton) deleteButton.addEventListener('click', (event) => {
-      event.stopPropagation();
-      displayedCurrencies = displayedCurrencies.filter((item) => item !== code);
-      saveSettings();
-      renderCurrencies();
-    });
-
-    const amountInput = card.querySelector('.amount-input');
-    amountInput.addEventListener('click', (event) => {
-      if (isEditMode) return;
-      event.stopPropagation();
-      openCalc(code, amount);
-    });
-
-    const dragHandle = card.querySelector('.drag-handle');
-    dragHandle.addEventListener('pointerdown', (event) => {
-      if (!isEditMode) return;
-      event.preventDefault();
-      startManualDrag(card, event);
-    });
-    dragHandle.addEventListener('keydown', (event) => {
-      if (isEditMode && (event.key === 'Enter' || event.key === ' ')) event.preventDefault();
-    });
-
-    listElement.appendChild(card);
+function getVisibleCurrencyCodes() {
+  return displayedCurrencies.filter((code) => {
+    const rate = Number(ratesVsHKD?.[code]);
+    return allCurrencyInfo[code] && Number.isFinite(rate) && rate > 0;
   });
 }
+
+function createCurrencyCard(code) {
+  const info = allCurrencyInfo[code];
+  const exchangeRate = Number(ratesVsHKD[code]);
+  const amount = currentBaseHKD * exchangeRate;
+  const cardColor = getCardColor(code);
+  const card = document.createElement('article');
+  card.className = 'currency-card';
+  card.dataset.code = code;
+  card.style.background = cardColor.bg;
+  card.style.borderColor = cardColor.border;
+  if (isEditMode) card.classList.add('editing');
+
+  card.innerHTML = `
+    <div class="card-actions-left">
+      <span class="drag-handle" role="button" tabindex="0" aria-label="拖曳排序 ${code}">⠿</span>
+      ${code !== 'HKD' ? `<button class="delete-btn" type="button" aria-label="移除 ${code}">×</button>` : ''}
+    </div>
+    <div class="flag-icon"><img src="https://flagcdn.com/w40/${info.code}.png" width="40" height="30" alt="${code} 國旗" loading="lazy" decoding="async"></div>
+    <div class="currency-info"><div class="currency-code">${code}</div><div class="currency-watermark" style="color:${cardColor.watermark}">${info.name}</div></div>
+    <div class="currency-value"><input type="text" id="input-${code}" class="amount-input" value="${info.symbol} ${formatCurrencyAmount(code, amount)}" readonly aria-label="${code} 金額"></div>`;
+  return card;
+}
+
+function renderCurrencies() {
+  const fragment = document.createDocumentFragment();
+  getVisibleCurrencyCodes().forEach((code) => fragment.appendChild(createCurrencyCard(code)));
+  currencyListElement.replaceChildren(fragment);
+}
+
+function updateRenderedAmounts() {
+  const visibleCodes = getVisibleCurrencyCodes();
+  const cards = [...currencyListElement.querySelectorAll('.currency-card')];
+  if (cards.length !== visibleCodes.length || cards.some((card, index) => card.dataset.code !== visibleCodes[index])) return false;
+
+  visibleCodes.forEach((code) => {
+    const input = document.getElementById(`input-${code}`);
+    if (input) input.value = `${allCurrencyInfo[code].symbol} ${formatCurrencyAmount(code, currentBaseHKD * ratesVsHKD[code])}`;
+  });
+  return true;
+}
+
+currencyListElement.addEventListener('click', (event) => {
+  const card = event.target.closest('.currency-card');
+  if (!card || !currencyListElement.contains(card)) return;
+  const code = card.dataset.code;
+
+  if (event.target.closest('.delete-btn')) {
+    displayedCurrencies = displayedCurrencies.filter((item) => item !== code);
+    saveSettings();
+    renderCurrencies();
+    return;
+  }
+
+  if (event.target.closest('.amount-input') && !isEditMode) {
+    openCalc(code, currentBaseHKD * ratesVsHKD[code]);
+  }
+});
+
+currencyListElement.addEventListener('pointerdown', (event) => {
+  const dragHandle = event.target.closest('.drag-handle');
+  if (!dragHandle || !isEditMode) return;
+  const card = dragHandle.closest('.currency-card');
+  if (!card) return;
+  event.preventDefault();
+  startManualDrag(card, event);
+});
 
 function getDragAfterElement(container, y) {
   const cards = [...container.querySelectorAll('.currency-card:not(.dragging)')];
@@ -218,10 +245,11 @@ function getDragAfterElement(container, y) {
 }
 
 function startManualDrag(card, startEvent) {
-  const listElement = document.getElementById('currency-list');
   const cardRect = card.getBoundingClientRect();
   const offsetInCard = startEvent.clientY - cardRect.top;
   const placeholder = document.createElement('div');
+  let pendingClientY = startEvent.clientY;
+  let animationFrameId = null;
   placeholder.style.height = `${cardRect.height}px`;
   placeholder.style.flexShrink = '0';
 
@@ -231,33 +259,44 @@ function startManualDrag(card, startEvent) {
   card.style.width = `${cardRect.width}px`;
   card.style.top = `${cardRect.top}px`;
   card.style.pointerEvents = 'none';
-  listElement.insertBefore(placeholder, card.nextSibling);
+  currencyListElement.insertBefore(placeholder, card.nextSibling);
 
   function moveTo(clientY) {
     card.style.top = `${clientY - offsetInCard}px`;
-    const afterElement = getDragAfterElement(listElement, clientY);
-    if (!afterElement) listElement.appendChild(placeholder);
-    else if (afterElement !== placeholder) listElement.insertBefore(placeholder, afterElement);
+    const afterElement = getDragAfterElement(currencyListElement, clientY);
+    if (!afterElement) currencyListElement.appendChild(placeholder);
+    else if (afterElement !== placeholder) currencyListElement.insertBefore(placeholder, afterElement);
+  }
+
+  function scheduleMove() {
+    if (animationFrameId !== null) return;
+    animationFrameId = window.requestAnimationFrame(() => {
+      animationFrameId = null;
+      moveTo(pendingClientY);
+    });
   }
 
   function onMove(event) {
     event.preventDefault();
-    moveTo(event.clientY);
+    pendingClientY = event.clientY;
+    scheduleMove();
   }
 
   function endDrag() {
+    if (animationFrameId !== null) window.cancelAnimationFrame(animationFrameId);
+    moveTo(pendingClientY);
     card.classList.remove('dragging');
     card.style.position = '';
     card.style.left = '';
     card.style.width = '';
     card.style.top = '';
     card.style.pointerEvents = '';
-    listElement.insertBefore(card, placeholder);
+    currencyListElement.insertBefore(card, placeholder);
     placeholder.remove();
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', endDrag);
     document.removeEventListener('pointercancel', endDrag);
-    displayedCurrencies = [...document.querySelectorAll('.currency-card')].map((element) => element.dataset.code);
+    displayedCurrencies = [...currencyListElement.querySelectorAll('.currency-card')].map((element) => element.dataset.code);
     saveSettings();
   }
 
@@ -270,10 +309,7 @@ function updateAllAmounts(changedCode, changedAmount) {
   const sourceRate = Number(ratesVsHKD?.[changedCode]);
   if (!Number.isFinite(sourceRate) || sourceRate <= 0 || !Number.isFinite(changedAmount)) return;
   currentBaseHKD = changedAmount / sourceRate;
-  displayedCurrencies.forEach((code) => {
-    const input = document.getElementById(`input-${code}`);
-    if (input) input.value = `${allCurrencyInfo[code].symbol} ${formatCurrencyAmount(code, currentBaseHKD * ratesVsHKD[code])}`;
-  });
+  if (!updateRenderedAmounts()) renderCurrencies();
 }
 
 function openCalc(code, value) {
@@ -380,30 +416,40 @@ document.getElementById('edit-btn').addEventListener('click', () => {
   renderCurrencies();
 });
 
-document.getElementById('add-btn').addEventListener('click', () => {
-  const container = document.getElementById('currency-options');
-  container.innerHTML = '';
+const currencyOptionsElement = document.getElementById('currency-options');
+
+function renderCurrencyOptions() {
+  const fragment = document.createDocumentFragment();
   Object.keys(allCurrencyInfo).forEach((code) => {
     if (displayedCurrencies.includes(code) || !Number.isFinite(Number(ratesVsHKD?.[code]))) return;
     const option = document.createElement('button');
     option.type = 'button';
     option.className = 'currency-option';
+    option.dataset.code = code;
     option.style.width = '100%';
     option.style.background = '#fff';
     option.style.textAlign = 'left';
     option.style.borderLeft = '0';
     option.style.borderRight = '0';
     option.style.borderTop = '0';
-    option.innerHTML = `<img src="https://flagcdn.com/w80/${allCurrencyInfo[code].code}.png" alt="${code} 國旗" loading="lazy"><span><strong style="display:block;color:#1b1f23">${code}</strong><small style="color:#777">${allCurrencyInfo[code].name}</small></span>`;
-    option.addEventListener('click', () => {
-      displayedCurrencies.push(code);
-      saveSettings();
-      closeModal('add-modal');
-      renderCurrencies();
-    });
-    container.appendChild(option);
+    option.innerHTML = `<img src="https://flagcdn.com/w40/${allCurrencyInfo[code].code}.png" width="40" height="30" alt="${code} 國旗" loading="lazy" decoding="async"><span><strong style="display:block;color:#1b1f23">${code}</strong><small style="color:#777">${allCurrencyInfo[code].name}</small></span>`;
+    fragment.appendChild(option);
   });
+  currencyOptionsElement.replaceChildren(fragment);
+}
+
+document.getElementById('add-btn').addEventListener('click', () => {
+  renderCurrencyOptions();
   document.getElementById('add-modal').classList.add('active');
+});
+
+currencyOptionsElement.addEventListener('click', (event) => {
+  const option = event.target.closest('.currency-option');
+  if (!option || !currencyOptionsElement.contains(option)) return;
+  displayedCurrencies.push(option.dataset.code);
+  saveSettings();
+  closeModal('add-modal');
+  renderCurrencies();
 });
 
 document.getElementById('modal-close').addEventListener('click', () => closeModal('add-modal'));
@@ -411,6 +457,16 @@ document.getElementById('modal-close').addEventListener('click', () => closeModa
 function getSavedApiType() {
   const saved = localStorage.getItem(STORAGE_KEYS.api);
   return API_CONFIGS[saved] ? saved : 'currencyapi';
+}
+
+function hydrateCachedRates() {
+  const cached = getCachedRates();
+  if (!cached) return false;
+  ratesVsHKD = cached.rates;
+  const freshness = cached.isExpired ? '，資料已超過 48 小時' : '';
+  setUpdateStatus(`正在使用 ${formatUpdatedAt(cached.updatedAt)} 的已快取資料${freshness}，並於背景同步。`, cached.isExpired ? 'error' : 'cached');
+  renderCurrencies();
+  return true;
 }
 
 apiSelector.value = getSavedApiType();
@@ -426,7 +482,7 @@ async function initialize({ savePreference = false } = {}) {
   if (savePreference) localStorage.setItem(STORAGE_KEYS.api, apiType);
   try {
     const rates = await fetchRates(apiType);
-    if (rates) renderCurrencies();
+    if (rates && !updateRenderedAmounts()) renderCurrencies();
   } finally {
     isRefreshing = false;
     refreshButton.disabled = false;
@@ -453,4 +509,5 @@ installButton.addEventListener('click', async () => {
 });
 window.addEventListener('appinstalled', () => { deferredPrompt = null; installButton.hidden = true; });
 
+hydrateCachedRates();
 initialize();
