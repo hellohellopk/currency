@@ -28,8 +28,12 @@ expect(indexHtml.includes('source-menu-btn') && indexHtml.includes('source-menu'
 expect(!indexHtml.includes('api-selector'), '首頁仍保留舊的匯率來源下拉選單');
 expect(indexHtml.includes('display=swap'), '字型未設定非阻塞顯示策略');
 expect(indexHtml.includes('dns-prefetch') && indexHtml.includes('flagcdn.com'), '首頁缺少國旗網域預先解析');
-expect(appJs.includes('CARD_COLORS'), '找不到彩色幣別卡片設定');
-expect(appJs.includes('pastelSaturation') && appJs.includes('color.s - 35') && appJs.includes('%, 60%)'), '找不到低飽和度、60%亮度的卡片配色設定');
+const rgbPaletteMatch = appJs.match(/const RGB_CARD_COLORS = \{([\s\S]*?)\n\};/);
+const rgbPalette = rgbPaletteMatch ? [...rgbPaletteMatch[1].matchAll(/#[0-9A-F]{6}/gi)].map((match) => match[0].toUpperCase()) : [];
+expect(appJs.includes('RGB_CARD_COLORS'), '找不到固定 RGB 卡片配色設定');
+expect(rgbPalette.length >= 20, '固定 RGB 色盤不足二十種顏色');
+expect(new Set(rgbPalette).size === rgbPalette.length, '固定 RGB 色盤含有重複顏色');
+expect(['#FFCCCC', '#FFE5CC', '#FFFFCC', '#E5FFCC', '#CCFFCC'].every((color) => rgbPalette.includes(color)), '固定 RGB 色盤未使用指定色表的淺色系色碼');
 expect(indexHtml.includes('height:40px'), '貨幣卡片高度未設定為 40px');
 expect(!appJs.includes('currency-title-row') && !indexHtml.includes('.currency-title-row'), '貨幣卡片仍保留兩行名稱結構');
 expect(appJs.includes('currency-name') && indexHtml.includes('.currency-name'), '貨幣卡片未提供完整名稱欄位');
@@ -57,7 +61,7 @@ for (const icon of manifest.icons || []) {
   expect(existsSync(iconPath), `找不到圖示檔案：${icon.src}`);
 }
 
-expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v13'"), 'Service Worker 快取版本未更新');
+expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v14'"), 'Service Worker 快取版本未更新');
 expect(serviceWorker.includes('./app.js'), 'Service Worker 未預快取新版主程式');
 expect(serviceWorker.includes('NETWORK_FIRST_PATHS') && serviceWorker.includes('networkFirst'), 'Service Worker 未對核心更新資產採取網路優先策略');
 expect(serviceWorker.includes('APP_SHELL'), 'Service Worker 缺少 App Shell 快取設定');

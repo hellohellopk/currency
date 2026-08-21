@@ -31,12 +31,13 @@ const allCurrencyInfo = {
   RUB: { name: 'Russian Ruble', code: 'ru', symbol: '₽' }
 };
 
-const CARD_COLORS = [
-  { h: 142, s: 68 }, { h: 4, s: 78 }, { h: 38, s: 92 }, { h: 199, s: 75 }, { h: 328, s: 70 },
-  { h: 262, s: 65 }, { h: 22, s: 85 }, { h: 168, s: 60 }, { h: 352, s: 75 }, { h: 88, s: 55 },
-  { h: 214, s: 70 }, { h: 14, s: 80 }, { h: 55, s: 85 }, { h: 285, s: 60 }, { h: 180, s: 55 },
-  { h: 305, s: 65 }, { h: 122, s: 60 }, { h: 240, s: 65 }, { h: 65, s: 70 }, { h: 8, s: 70 }
-];
+const RGB_CARD_COLORS = {
+  HKD: '#FFCCCC', USD: '#FFE5CC', EUR: '#FFFFCC', JPY: '#E5FFCC', GBP: '#CCFFCC', CNY: '#CCFFE5',
+  AUD: '#CCFFFF', CAD: '#CCE5FF', CHF: '#CCCCFF', SGD: '#E5CCFF', SEK: '#FFCCFF', KRW: '#FFCCE5',
+  NOK: '#E5CCCC', NZD: '#E5E5CC', INR: '#CCE5CC', MXN: '#CCE5E5', TWD: '#CCCCE5', ZAR: '#E5E5FF',
+  BRL: '#FFE5FF', THB: '#FFFFE5', TRY: '#FFE0C0', NGN: '#FFFFE0', PHP: '#E0FFC0', VND: '#C0FFC0',
+  IDR: '#C0E0E0', MYR: '#C0E0FF', RUB: '#E0C0FF'
+};
 const defaultCurrencies = ['HKD', 'USD', 'EUR', 'JPY', 'GBP', 'CNY', 'AUD', 'CAD', 'CHF', 'SGD', 'SEK', 'KRW', 'NOK', 'NZD', 'INR', 'MXN', 'TWD', 'ZAR', 'BRL', 'THB'];
 const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND']);
 const STORAGE_KEYS = { currencies: 'fx_terminal_list', pinnedCurrencies: 'fx_terminal_pinned', api: 'fx_terminal_api', rateCache: 'fx_terminal_rate_cache' };
@@ -52,11 +53,8 @@ let calcVal = '0';
 let calcTarget = 'HKD';
 
 function getCardColor(code) {
-  let hash = 0;
-  for (let index = 0; index < code.length; index += 1) hash = (hash * 31 + code.charCodeAt(index)) % CARD_COLORS.length;
-  const color = CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
-  const pastelSaturation = Math.max(0, color.s - 35);
-  return { bg: `hsl(${color.h}, ${pastelSaturation}%, 60%)`, border: `hsl(${color.h}, ${pastelSaturation}%, 40%)`, watermark: `hsl(${color.h}, ${pastelSaturation}%, 20%)` };
+  const bg = RGB_CARD_COLORS[code] || '#E5E5E5';
+  return { bg, border: 'rgba(0, 0, 0, .22)', watermark: 'rgba(0, 0, 0, .25)' };
 }
 
 function loadDisplayedCurrencies() {
