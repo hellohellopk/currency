@@ -55,8 +55,8 @@ function getCardColor(code) {
   let hash = 0;
   for (let index = 0; index < code.length; index += 1) hash = (hash * 31 + code.charCodeAt(index)) % CARD_COLORS.length;
   const color = CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
-  const softenedSaturation = Math.max(0, color.s - 5);
-  return { bg: `hsl(${color.h}, ${softenedSaturation}%, 60%)`, border: `hsl(${color.h}, ${softenedSaturation}%, 40%)`, watermark: `hsl(${color.h}, ${softenedSaturation}%, 15%)` };
+  const softenedSaturation = Math.max(0, color.s - 15);
+  return { bg: `hsl(${color.h}, ${softenedSaturation}%, 55%)`, border: `hsl(${color.h}, ${softenedSaturation}%, 35%)`, watermark: `hsl(${color.h}, ${softenedSaturation}%, 15%)` };
 }
 
 function loadDisplayedCurrencies() {
@@ -204,7 +204,7 @@ function createCurrencyCard(code) {
       ${code !== 'HKD' ? `<button class="delete-btn" type="button" aria-label="移除 ${code}">×</button>` : ''}
     </div>
     <div class="flag-icon"><img src="https://flagcdn.com/w40/${info.code}.png" width="40" height="30" alt="${code} 國旗" loading="lazy" decoding="async"></div>
-    <div class="currency-info"><div class="currency-code">${code}</div>${isPinned ? '<span class="pin-indicator" aria-label="已釘選">★</span>' : ''}<div class="currency-name">${info.name}</div></div>
+    <div class="currency-info"><div class="currency-title-row"><div class="currency-code">${code}</div>${isPinned ? '<span class="pin-indicator" aria-label="已釘選">★</span>' : ''}</div><div class="currency-name">${info.name}</div></div>
     <div class="currency-value"><input type="text" id="input-${code}" class="amount-input" value="${info.symbol} ${formatCurrencyAmount(code, amount)}" readonly aria-label="${code} 金額"></div>`;
   return card;
 }

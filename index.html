@@ -47,7 +47,7 @@
     .btn:hover:not(:disabled) { background:#f6f8fa; } .btn:disabled { opacity:.5; cursor:wait; }
     .btn.editing { border-color:var(--error); background:var(--error); color:#fff; }
     .currency-list-container { position:relative; display:flex; flex-direction:column; gap:6px; padding:0 12px 12px; }
-    .currency-card { position:relative; display:flex; align-items:center; width:100%; height:44px; padding:0 12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); border-radius:8px; transition:box-shadow .2s, transform .2s; user-select:none; -webkit-user-select:none; }
+    .currency-card { position:relative; display:flex; align-items:center; width:100%; height:60px; padding:0 12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); border-radius:8px; transition:box-shadow .2s, transform .2s; user-select:none; -webkit-user-select:none; }
     .currency-card.dragging { z-index:50; opacity:.88; box-shadow:0 8px 20px rgba(0,0,0,.25); }
     .currency-card.editing { padding-left:108px; }
     .card-actions-left { position:absolute; left:8px; z-index:10; display:none; align-items:center; gap:5px; }
@@ -59,13 +59,14 @@
     .pin-btn svg { width:13px; height:13px; fill:transparent; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; stroke-width:1.8; }
     .pin-btn.pinned { border-color:#8a6700; background:#fff7c2; color:#8a6700; }
     .pin-btn.pinned svg { fill:#ffcc00; }
-    .flag-icon { flex:0 0 auto; width:24px; height:24px; margin-right:10px; overflow:hidden; border:1px solid rgba(0,0,0,.15); border-radius:50%; }
+    .flag-icon { flex:0 0 auto; width:30px; height:30px; margin-right:10px; overflow:hidden; border:1px solid rgba(0,0,0,.15); border-radius:50%; }
     .flag-icon img { width:100%; height:100%; object-fit:cover; }
-    .currency-info { display:flex; flex:1.2; align-items:center; min-width:0; gap:7px; overflow:hidden; }
-    .currency-code { flex:0 0 auto; overflow:hidden; color:#000; font-size:16px; font-weight:700; line-height:1.15; text-overflow:ellipsis; white-space:nowrap; }
+    .currency-info { display:flex; flex:1.35; flex-direction:column; justify-content:center; min-width:0; overflow:hidden; }
+    .currency-title-row { display:flex; align-items:center; gap:7px; min-width:0; }
+    .currency-code { flex:0 0 auto; color:#000; font-size:16px; font-weight:700; line-height:1.15; white-space:nowrap; }
     .pin-indicator { flex:0 0 auto; color:#8a6700; font-size:12px; line-height:1; }
-    .currency-name { min-width:0; overflow:hidden; color:rgba(0,0,0,.68); font-size:10px; font-weight:600; line-height:1.15; text-overflow:ellipsis; white-space:nowrap; }
-    .currency-value { display:flex; flex:1.5; align-items:flex-end; padding-left:8px; }
+    .currency-name { width:100%; margin-top:3px; color:rgba(0,0,0,.72); font-size:10.5px; font-weight:600; line-height:1.15; white-space:nowrap; }
+    .currency-value { display:flex; flex:1.2; align-items:center; padding-left:8px; }
     .amount-input { width:100%; border:0; outline:0; background:transparent; color:#000; cursor:pointer; font-size:17px; font-weight:700; text-align:right; }
     .modal { position:fixed; inset:0; z-index:1000; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.5); }
     .modal.active { display:flex; }
@@ -81,7 +82,7 @@
     .currency-options { flex:1; overflow-y:auto; }
     .currency-option { display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; }
     .currency-option:hover { background:#f6f8fa; } .currency-option img { width:32px; height:32px; margin-right:12px; border:1px solid var(--border); border-radius:50%; }
-    @media (max-width:440px) { .terminal-header { gap:8px; padding:9px 12px; } .terminal-buttons { gap:5px; } .terminal-btn { width:10px; height:10px; } .terminal-title { font-size:11px; } .header-toolbar { gap:2px; } .icon-btn { width:32px; height:32px; } .currency-card { height:46px; } .currency-name { font-size:9px; } }
+    @media (max-width:440px) { .terminal-header { gap:8px; padding:9px 12px; } .terminal-buttons { gap:5px; } .terminal-btn { width:10px; height:10px; } .terminal-title { font-size:11px; } .header-toolbar { gap:2px; } .icon-btn { width:32px; height:32px; } .currency-card { height:64px; } .currency-name { font-size:10px; } }
   </style>
 </head>
 <body>
