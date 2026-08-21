@@ -55,8 +55,8 @@ function getCardColor(code) {
   let hash = 0;
   for (let index = 0; index < code.length; index += 1) hash = (hash * 31 + code.charCodeAt(index)) % CARD_COLORS.length;
   const color = CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
-  const pastelSaturation = Math.max(0, color.s - 25);
-  return { bg: `hsl(${color.h}, ${pastelSaturation}%, 74%)`, border: `hsl(${color.h}, ${pastelSaturation}%, 54%)`, watermark: `hsl(${color.h}, ${pastelSaturation}%, 25%)` };
+  const pastelSaturation = Math.max(0, color.s - 35);
+  return { bg: `hsl(${color.h}, ${pastelSaturation}%, 60%)`, border: `hsl(${color.h}, ${pastelSaturation}%, 40%)`, watermark: `hsl(${color.h}, ${pastelSaturation}%, 20%)` };
 }
 
 function loadDisplayedCurrencies() {

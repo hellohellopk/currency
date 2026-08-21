@@ -29,7 +29,8 @@ expect(!indexHtml.includes('api-selector'), '首頁仍保留舊的匯率來源�
 expect(indexHtml.includes('display=swap'), '字型未設定非阻塞顯示策略');
 expect(indexHtml.includes('dns-prefetch') && indexHtml.includes('flagcdn.com'), '首頁缺少國旗網域預先解析');
 expect(appJs.includes('CARD_COLORS'), '找不到彩色幣別卡片設定');
-expect(appJs.includes('pastelSaturation') && appJs.includes('color.s - 25'), '找不到淺色卡片配色設定');
+expect(appJs.includes('pastelSaturation') && appJs.includes('color.s - 35') && appJs.includes('%, 60%)'), '找不到低飽和度、60%亮度的卡片配色設定');
+expect(indexHtml.includes('height:40px'), '貨幣卡片高度未設定為 40px');
 expect(!appJs.includes('currency-title-row') && !indexHtml.includes('.currency-title-row'), '貨幣卡片仍保留兩行名稱結構');
 expect(appJs.includes('currency-name') && indexHtml.includes('.currency-name'), '貨幣卡片未提供完整名稱欄位');
 expect(appJs.includes('pinnedCurrencies') && appJs.includes('fx_terminal_pinned'), '找不到熱門貨幣釘選偏好設定');
@@ -56,7 +57,7 @@ for (const icon of manifest.icons || []) {
   expect(existsSync(iconPath), `找不到圖示檔案：${icon.src}`);
 }
 
-expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v12'"), 'Service Worker 快取版本未更新');
+expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v13'"), 'Service Worker 快取版本未更新');
 expect(serviceWorker.includes('./app.js'), 'Service Worker 未預快取新版主程式');
 expect(serviceWorker.includes('NETWORK_FIRST_PATHS') && serviceWorker.includes('networkFirst'), 'Service Worker 未對核心更新資產採取網路優先策略');
 expect(serviceWorker.includes('APP_SHELL'), 'Service Worker 缺少 App Shell 快取設定');
