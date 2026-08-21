@@ -186,7 +186,7 @@ function createCurrencyCard(code) {
       ${code !== 'HKD' ? `<button class="delete-btn" type="button" aria-label="移除 ${code}">×</button>` : ''}
     </div>
     <div class="flag-icon"><img src="https://flagcdn.com/w40/${info.code}.png" width="40" height="30" alt="${code} 國旗" loading="lazy" decoding="async"></div>
-    <div class="currency-info"><div class="currency-code">${code}</div><div class="currency-watermark" style="color:${cardColor.watermark}">${info.name}</div></div>
+    <div class="currency-info"><div class="currency-code">${code}</div><div class="currency-name">${info.name}</div></div>
     <div class="currency-value"><input type="text" id="input-${code}" class="amount-input" value="${info.symbol} ${formatCurrencyAmount(code, amount)}" readonly aria-label="${code} 金額"></div>`;
   return card;
 }
