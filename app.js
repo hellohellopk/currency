@@ -55,10 +55,12 @@ let calcTarget = 'HKD';
 let rateCacheStore = null;
 let backgroundRefreshTimer = null;
 
-function darkenHexColor(hex, factor = 0.42) {
+function darkenHexColor(hex, factor = 0.4, saturation = 0.32) {
   const value = Number.parseInt(hex.slice(1), 16);
-  const channel = (offset) => Math.round(((value >> offset) & 255) * factor).toString(16).padStart(2, '0');
-  return `#${channel(16)}${channel(8)}${channel(0)}`;
+  const channels = [16, 8, 0].map((offset) => (value >> offset) & 255);
+  const neutral = channels.reduce((sum, channel) => sum + channel, 0) / channels.length;
+  const muted = channels.map((channel) => Math.round((neutral + (channel - neutral) * saturation) * factor));
+  return `#${muted.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 function getCardColor(code) {
@@ -473,6 +475,10 @@ const THEME_ICONS = {
   light: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8 8 0 0 1 9.8 3.5 8 8 0 1 0 20.5 14.2z"/></svg>',
   dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
 };
+const EDIT_ICONS = {
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16z"/><path d="m14.5 6.5 3 3"/></svg>',
+  done: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.2 4.2L19 6.5"/></svg>'
+};
 
 function getSavedTheme() {
   const saved = localStorage.getItem(STORAGE_KEYS.theme);
@@ -495,11 +501,19 @@ function applyTheme(theme, { render = true } = {}) {
 applyTheme(getSavedTheme(), { render: false });
 themeButton.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 
+function updateEditButton() {
+  const button = document.getElementById('edit-btn');
+  button.innerHTML = isEditMode ? EDIT_ICONS.done : EDIT_ICONS.edit;
+  button.classList.toggle('editing', isEditMode);
+  button.setAttribute('aria-pressed', String(isEditMode));
+  button.setAttribute('aria-label', isEditMode ? '完成編輯貨幣清單' : '編輯貨幣清單');
+  button.setAttribute('title', isEditMode ? '完成編輯貨幣清單' : '編輯貨幣清單');
+}
+
+updateEditButton();
 document.getElementById('edit-btn').addEventListener('click', () => {
   isEditMode = !isEditMode;
-  const button = document.getElementById('edit-btn');
-  button.textContent = isEditMode ? '完成' : '編輯';
-  button.classList.toggle('editing', isEditMode);
+  updateEditButton();
   renderCurrencies();
 });
 

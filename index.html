@@ -16,8 +16,8 @@
   <title>FX Terminal Pro</title>
   <script>try{const theme=localStorage.getItem('fx_terminal_theme');if(theme==='dark'||(!theme&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark';}catch{}</script>
   <style>
-    :root { --bg-color:#fff; --terminal-bg:#fff; --surface:#f6f6f6; --surface-hover:#fff; --surface-selected:#eef4fc; --primary:#1b1f23; --accent:#0366d6; --warn:#a97800; --error:#d73a49; --text-gray:#586069; --text-muted:#666; --border:#e8e8e8; }
-    html[data-theme="dark"] { color-scheme:dark; --bg-color:#0d1117; --terminal-bg:#0d1117; --surface:#161b22; --surface-hover:#21262d; --surface-selected:#1f334d; --primary:#f0f6fc; --accent:#58a6ff; --warn:#f2cc60; --error:#ff7b72; --text-gray:#b6c2cf; --text-muted:#8b949e; --border:#30363d; }
+    :root { --bg-color:#fff; --terminal-bg:#fff; --surface:#f6f6f6; --surface-hover:#fff; --surface-selected:#eef4fc; --primary:#1b1f23; --accent:#0366d6; --warn:#a97800; --error:#d73a49; --editing-bg:#d73a49; --editing-border:#d73a49; --text-gray:#586069; --text-muted:#666; --border:#e8e8e8; }
+    html[data-theme="dark"] { color-scheme:dark; --bg-color:#111315; --terminal-bg:#111315; --surface:#1b1e21; --surface-hover:#282c30; --surface-selected:#30383f; --primary:#e6e9ec; --accent:#91a9bd; --warn:#b5a879; --error:#b99096; --editing-bg:#62484d; --editing-border:#8a686e; --text-gray:#b9c0c6; --text-muted:#949da5; --border:#3a4147; }
     * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
     body { min-width:320px; overflow-x:hidden; background:var(--bg-color); color:var(--primary); font-family:"Fira Code","SF Mono",ui-monospace,monospace; }
     button, select, input { font:inherit; }
@@ -29,9 +29,9 @@
     .btn-red { background:var(--error); } .btn-yellow { background:#ffbd2e; } .btn-green { background:#27c93f; }
     .terminal-title { flex:1; min-width:0; margin:0; overflow:hidden; color:var(--text-gray); font-size:13px; font-weight:600; letter-spacing:.04em; text-overflow:ellipsis; white-space:nowrap; }
     .header-toolbar { position:relative; display:flex; flex:0 0 auto; align-items:center; gap:6px; }
-    .icon-btn { display:inline-grid; width:34px; height:34px; place-items:center; padding:0; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--primary); cursor:pointer; }
+    .icon-btn { display:inline-grid; width:34px; height:34px; place-items:center; padding:0; overflow:hidden; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--primary); cursor:pointer; }
     .icon-btn:hover:not(:disabled), .icon-btn[aria-expanded="true"] { border-color:var(--border); background:var(--surface-hover); }
-    .icon-btn.editing { border-color:var(--error); background:var(--error); color:#fff; }
+    .icon-btn.editing { border-color:var(--editing-border); background:var(--editing-bg); color:#fff; }
     .icon-btn:disabled { opacity:.5; cursor:wait; }
     .icon-btn svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; stroke-width:1.8; }
     .source-control { position:relative; }
