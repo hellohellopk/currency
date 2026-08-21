@@ -39,8 +39,8 @@
     .source-option:hover, .source-option[aria-current="true"] { background:#eef4fc; color:var(--accent); }
     .source-option svg { flex:0 0 auto; width:16px; height:16px; fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; stroke-width:1.8; }
     .terminal-body { flex:1; }
-    .header-content { padding:16px 16px 8px; }
-    .update-time { min-height:16px; color:#777; font-size:11px; line-height:1.45; }
+    .app-footer { margin-top:auto; padding:10px 16px 12px; border-top:1px solid var(--border); background:#f6f6f6; text-align:center; }
+    .update-time { min-height:16px; color:#666; font-size:11px; line-height:1.45; }
     .update-time.error { color:var(--error); } .update-time.cached { color:var(--warn); }
     .reference-note { margin-top:3px; color:#777; font-size:10px; line-height:1.45; }
     .btn { min-height:34px; padding:8px 12px; border:1px solid var(--primary); border-radius:4px; background:transparent; color:var(--primary); cursor:pointer; font-size:11px; font-weight:600; }
@@ -104,12 +104,12 @@
       </nav>
     </header>
     <section class="terminal-body" aria-label="匯率換算器">
-      <div class="header-content">
-        <div class="update-time" id="update-time" role="status" aria-live="polite">正在同步匯率資料…</div>
-        <p class="reference-note">匯率僅供參考；實際銀行或換匯商報價可能不同。</p>
-      </div>
       <div id="currency-list" class="currency-list-container" aria-live="polite"></div>
     </section>
+    <footer class="app-footer" aria-label="匯率資料資訊">
+      <div class="update-time" id="update-time" role="status" aria-live="polite">正在同步匯率資料…</div>
+      <p class="reference-note">匯率僅供參考；實際銀行或換匯商報價可能不同。</p>
+    </footer>
   </main>
   <div class="modal" id="calc-modal" role="dialog" aria-modal="true" aria-labelledby="calc-title">
     <div class="modal-content"><div class="calc-container">

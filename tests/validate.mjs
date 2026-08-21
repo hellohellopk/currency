@@ -21,6 +21,7 @@ try {
 
 expect(indexHtml.includes('<script src="./app.js"></script>'), '首頁未載入獨立主程式');
 expect(indexHtml.includes('currency-list'), '首頁缺少匯率清單容器');
+expect(indexHtml.includes('app-footer') && !indexHtml.includes('header-content'), '匯率資訊未移至頁面底部');
 expect(indexHtml.includes('refresh-btn'), '首頁缺少手動重新整理按鈕');
 expect(indexHtml.includes('header-toolbar') && indexHtml.includes('icon-btn'), '首頁缺少頂部圖示工具列');
 expect(indexHtml.includes('source-menu-btn') && indexHtml.includes('source-menu'), '首頁缺少圖示化匯率來源選單');
@@ -28,6 +29,7 @@ expect(!indexHtml.includes('api-selector'), '首頁仍保留舊的匯率來源�
 expect(indexHtml.includes('display=swap'), '字型未設定非阻塞顯示策略');
 expect(indexHtml.includes('dns-prefetch') && indexHtml.includes('flagcdn.com'), '首頁缺少國旗網域預先解析');
 expect(appJs.includes('CARD_COLORS'), '找不到彩色幣別卡片設定');
+expect(appJs.includes('softenedSaturation'), '找不到卡片色彩柔化設定');
 expect(appJs.includes('currency-name') && indexHtml.includes('.currency-name'), '貨幣卡片未提供完整名稱欄位');
 expect(appJs.includes('pinnedCurrencies') && appJs.includes('fx_terminal_pinned'), '找不到熱門貨幣釘選偏好設定');
 expect(appJs.includes('pin-btn') && indexHtml.includes('.pin-btn'), '找不到熱門貨幣釘選控制');
@@ -53,7 +55,7 @@ for (const icon of manifest.icons || []) {
   expect(existsSync(iconPath), `找不到圖示檔案：${icon.src}`);
 }
 
-expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v9'"), 'Service Worker 快取版本未更新');
+expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v10'"), 'Service Worker 快取版本未更新');
 expect(serviceWorker.includes('./app.js'), 'Service Worker 未預快取新版主程式');
 expect(serviceWorker.includes('NETWORK_FIRST_PATHS') && serviceWorker.includes('networkFirst'), 'Service Worker 未對核心更新資產採取網路優先策略');
 expect(serviceWorker.includes('APP_SHELL'), 'Service Worker 缺少 App Shell 快取設定');
