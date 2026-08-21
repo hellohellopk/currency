@@ -50,7 +50,7 @@ for (const icon of manifest.icons || []) {
   expect(existsSync(iconPath), `找不到圖示檔案：${icon.src}`);
 }
 
-expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v7'"), 'Service Worker 快取版本未更新');
+expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v8'"), 'Service Worker 快取版本未更新');
 expect(serviceWorker.includes('./app.js'), 'Service Worker 未預快取新版主程式');
 expect(serviceWorker.includes('NETWORK_FIRST_PATHS') && serviceWorker.includes('networkFirst'), 'Service Worker 未對核心更新資產採取網路優先策略');
 expect(serviceWorker.includes('APP_SHELL'), 'Service Worker 缺少 App Shell 快取設定');
