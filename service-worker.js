@@ -1,7 +1,8 @@
-const CACHE_NAME = 'fx-terminal-pwa-v2';
+const CACHE_NAME = 'fx-terminal-pwa-v3';
 const APP_SHELL = [
   './',
   './index.html',
+  './app.js',
   './manifest.webmanifest',
   './icons/icon-192.svg',
   './icons/icon-512.svg',
