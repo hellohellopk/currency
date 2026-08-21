@@ -40,7 +40,8 @@ const RGB_CARD_COLORS = {
 };
 const defaultCurrencies = ['HKD', 'USD', 'EUR', 'JPY', 'GBP', 'CNY', 'AUD', 'CAD', 'CHF', 'SGD', 'SEK', 'KRW', 'NOK', 'NZD', 'INR', 'MXN', 'TWD', 'ZAR', 'BRL', 'THB'];
 const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND']);
-const STORAGE_KEYS = { currencies: 'fx_terminal_list', pinnedCurrencies: 'fx_terminal_pinned', api: 'fx_terminal_api', rateCache: 'fx_terminal_rate_cache' };
+const STORAGE_KEYS = { currencies: 'fx_terminal_list', pinnedCurrencies: 'fx_terminal_pinned', api: 'fx_terminal_api', rateCache: 'fx_terminal_rate_cache', rateCaches: 'fx_terminal_rate_caches_v2' };
+const RATE_CACHE_FRESH_MS = 15 * 60 * 1000;
 const RATE_CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 let displayedCurrencies = loadDisplayedCurrencies();
@@ -51,6 +52,8 @@ let isEditMode = false;
 let isRefreshing = false;
 let calcVal = '0';
 let calcTarget = 'HKD';
+let rateCacheStore = null;
+let backgroundRefreshTimer = null;
 
 function getCardColor(code) {
   const bg = RGB_CARD_COLORS[code] || '#E5E5E5';
@@ -93,19 +96,38 @@ function isValidRateMap(rates) {
   return rates && typeof rates === 'object' && Number.isFinite(Number(rates.HKD)) && Number(rates.HKD) > 0;
 }
 
-function getCachedRates() {
+function loadRateCacheStore() {
+  if (rateCacheStore) return rateCacheStore;
   try {
-    const cached = JSON.parse(localStorage.getItem(STORAGE_KEYS.rateCache));
-    if (!cached || typeof cached !== 'object' || !isValidRateMap(cached.rates) || !Number.isFinite(cached.updatedAt)) return null;
-    const ageMs = Math.max(0, Date.now() - cached.updatedAt);
-    return { ...cached, ageMs, isExpired: ageMs > RATE_CACHE_MAX_AGE_MS };
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.rateCaches));
+    rateCacheStore = stored && typeof stored === 'object' ? stored : {};
   } catch {
-    return null;
+    rateCacheStore = {};
   }
+
+  try {
+    const legacyCache = JSON.parse(localStorage.getItem(STORAGE_KEYS.rateCache));
+    if (legacyCache?.apiType && !rateCacheStore[legacyCache.apiType]) rateCacheStore[legacyCache.apiType] = legacyCache;
+  } catch {
+    // 舊版快取不存在或格式無效時，直接使用新版快取層。
+  }
+  return rateCacheStore;
+}
+
+function getCachedRates(apiType = selectedApiType) {
+  const cached = loadRateCacheStore()[apiType];
+  if (!cached || typeof cached !== 'object' || !isValidRateMap(cached.rates) || !Number.isFinite(cached.updatedAt)) return null;
+  const cachedAt = Number.isFinite(cached.cachedAt) ? cached.cachedAt : cached.updatedAt;
+  const cacheAgeMs = Math.max(0, Date.now() - cachedAt);
+  return { ...cached, cachedAt, cacheAgeMs, isFresh: cacheAgeMs <= RATE_CACHE_FRESH_MS, isExpired: cacheAgeMs > RATE_CACHE_MAX_AGE_MS };
 }
 
 function saveCachedRates(rates, apiType, updatedAt) {
-  localStorage.setItem(STORAGE_KEYS.rateCache, JSON.stringify({ rates, apiType, updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now() }));
+  const cache = { rates, apiType, updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(), cachedAt: Date.now() };
+  const store = loadRateCacheStore();
+  store[apiType] = cache;
+  localStorage.setItem(STORAGE_KEYS.rateCaches, JSON.stringify(store));
+  localStorage.setItem(STORAGE_KEYS.rateCache, JSON.stringify(cache));
 }
 
 function buildRatesVsHKD(parsed) {
@@ -127,12 +149,12 @@ function formatUpdatedAt(timestamp) {
   return new Date(timestamp).toLocaleString('zh-Hant', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-async function fetchRates(apiType) {
+async function fetchRates(apiType, { background = false } = {}) {
   const config = API_CONFIGS[apiType];
   if (!config) throw new Error('不支援的匯率資料來源');
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 10000);
-  setUpdateStatus(`[${config.name}] 正在同步最新匯率…`);
+  if (!background) setUpdateStatus(`[${config.name}] 正在同步最新匯率…`);
 
   try {
     const response = await fetch(config.buildUrl(), { signal: controller.signal, cache: 'no-store' });
@@ -145,7 +167,7 @@ async function fetchRates(apiType) {
     setUpdateStatus(`[${config.name}] 最後更新：${formatUpdatedAt(updatedAt)}`);
     return normalizedRates;
   } catch (error) {
-    const cached = getCachedRates();
+    const cached = getCachedRates(apiType);
     if (cached) {
       ratesVsHKD = cached.rates;
       const freshness = cached.isExpired ? '，資料已超過 48 小時' : '';
@@ -489,13 +511,23 @@ function getSavedApiType() {
   return API_CONFIGS[saved] ? saved : 'currencyapi';
 }
 
-function hydrateCachedRates() {
-  const cached = getCachedRates();
+function scheduleBackgroundRefresh(cached, apiType) {
+  window.clearTimeout(backgroundRefreshTimer);
+  const waitMs = cached?.isFresh ? Math.max(1000, RATE_CACHE_FRESH_MS - cached.cacheAgeMs) : 0;
+  backgroundRefreshTimer = window.setTimeout(() => {
+    if (selectedApiType === apiType && document.visibilityState === 'visible') initialize({ forceNetwork: true, background: true });
+  }, waitMs);
+}
+
+function hydrateCachedRates(apiType = selectedApiType) {
+  const cached = getCachedRates(apiType);
   if (!cached) return false;
   ratesVsHKD = cached.rates;
-  const freshness = cached.isExpired ? '，資料已超過 48 小時' : '';
-  setUpdateStatus(`正在使用 ${formatUpdatedAt(cached.updatedAt)} 的已快取資料${freshness}，並於背景同步。`, cached.isExpired ? 'error' : 'cached');
+  const config = API_CONFIGS[apiType];
+  const freshness = cached.isExpired ? '，資料已超過 48 小時' : cached.isFresh ? '，資料仍在快速快取期限內' : '';
+  setUpdateStatus(`[${config.name}] 正在使用 ${formatUpdatedAt(cached.updatedAt)} 的已快取資料${freshness}。`, cached.isExpired ? 'error' : 'cached');
   renderCurrencies();
+  scheduleBackgroundRefresh(cached, apiType);
   return true;
 }
 
@@ -530,23 +562,39 @@ document.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') setSourceMenuOpen(false);
 });
-refreshButton.addEventListener('click', () => initialize());
+refreshButton.addEventListener('click', () => initialize({ forceNetwork: true }));
 
-async function initialize() {
+async function initialize({ forceNetwork = false, background = false } = {}) {
   if (isRefreshing) return;
-  isRefreshing = true;
   const apiType = selectedApiType;
-  refreshButton.disabled = true;
-  sourceMenuButton.disabled = true;
-  updateSelectedSourceOption();
+  const cached = getCachedRates(apiType);
+
+  if (!forceNetwork && cached?.isFresh) {
+    ratesVsHKD = cached.rates;
+    const config = API_CONFIGS[apiType];
+    setUpdateStatus(`[${config.name}] 正在使用 ${formatUpdatedAt(cached.updatedAt)} 的已快取資料，資料仍在快速快取期限內。`, 'cached');
+    if (!updateRenderedAmounts()) renderCurrencies();
+    scheduleBackgroundRefresh(cached, apiType);
+    return;
+  }
+
+  isRefreshing = true;
+  if (!background) {
+    refreshButton.disabled = true;
+    sourceMenuButton.disabled = true;
+    updateSelectedSourceOption();
+  }
   try {
-    const rates = await fetchRates(apiType);
+    const rates = await fetchRates(apiType, { background });
     if (rates && !updateRenderedAmounts()) renderCurrencies();
+    scheduleBackgroundRefresh(getCachedRates(apiType), apiType);
   } finally {
     isRefreshing = false;
-    refreshButton.disabled = false;
-    sourceMenuButton.disabled = false;
-    updateSelectedSourceOption();
+    if (!background) {
+      refreshButton.disabled = false;
+      sourceMenuButton.disabled = false;
+      updateSelectedSourceOption();
+    }
   }
 }
 
@@ -571,3 +619,7 @@ window.addEventListener('appinstalled', () => { deferredPrompt = null; installBu
 
 hydrateCachedRates();
 initialize();
+window.addEventListener('online', () => initialize({ forceNetwork: true, background: true }));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') initialize();
+});

@@ -45,9 +45,10 @@ expect(appJs.includes('sourceMenuButton') && appJs.includes('setSourceMenuOpen')
 expect(!appJs.includes('apiSelector'), '主程式仍使用已移除的來源下拉選單');
 expect(appJs.includes('evaluateExpression'), '找不到受限計算器解析器');
 expect(!appJs.includes('Function('), '計算器仍使用動態 Function 執行算式');
-expect(appJs.includes('fx_terminal_rate_cache'), '找不到匯率離線快取設定');
-expect(appJs.includes('RATE_CACHE_MAX_AGE_MS'), '找不到匯率快取有效期限設定');
-expect(appJs.includes('hydrateCachedRates'), '找不到快取預先渲染流程');
+expect(appJs.includes('fx_terminal_rate_cache') && appJs.includes('fx_terminal_rate_caches_v2'), '找不到匯率離線快取與新版多來源快取設定');
+expect(appJs.includes('RATE_CACHE_FRESH_MS') && appJs.includes('RATE_CACHE_MAX_AGE_MS'), '找不到匯率快取新鮮度與有效期限設定');
+expect(appJs.includes('loadRateCacheStore') && appJs.includes('getCachedRates(apiType)'), '找不到來源分流的快取讀取流程');
+expect(appJs.includes('hydrateCachedRates') && appJs.includes('scheduleBackgroundRefresh'), '找不到快取預先渲染與背景同步排程');
 expect(appJs.includes('DocumentFragment') && appJs.includes('replaceChildren'), '找不到批次 DOM 渲染策略');
 expect(appJs.includes('requestAnimationFrame'), '找不到拖曳動畫幀節流');
 expect(appJs.includes('w40') && !appJs.includes('w160'), '國旗圖片尺寸尚未最佳化');
@@ -61,7 +62,7 @@ for (const icon of manifest.icons || []) {
   expect(existsSync(iconPath), `找不到圖示檔案：${icon.src}`);
 }
 
-expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v14'"), 'Service Worker 快取版本未更新');
+expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v15'"), 'Service Worker 快取版本未更新');
 expect(serviceWorker.includes('./app.js'), 'Service Worker 未預快取新版主程式');
 expect(serviceWorker.includes('NETWORK_FIRST_PATHS') && serviceWorker.includes('networkFirst'), 'Service Worker 未對核心更新資產採取網路優先策略');
 expect(serviceWorker.includes('APP_SHELL'), 'Service Worker 缺少 App Shell 快取設定');
