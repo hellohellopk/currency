@@ -39,10 +39,11 @@ const CARD_COLORS = [
 ];
 const defaultCurrencies = ['HKD', 'USD', 'EUR', 'JPY', 'GBP', 'CNY', 'AUD', 'CAD', 'CHF', 'SGD', 'SEK', 'KRW', 'NOK', 'NZD', 'INR', 'MXN', 'TWD', 'ZAR', 'BRL', 'THB'];
 const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND']);
-const STORAGE_KEYS = { currencies: 'fx_terminal_list', api: 'fx_terminal_api', rateCache: 'fx_terminal_rate_cache' };
+const STORAGE_KEYS = { currencies: 'fx_terminal_list', pinnedCurrencies: 'fx_terminal_pinned', api: 'fx_terminal_api', rateCache: 'fx_terminal_rate_cache' };
 const RATE_CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 let displayedCurrencies = loadDisplayedCurrencies();
+let pinnedCurrencies = loadPinnedCurrencies();
 let ratesVsHKD = null;
 let currentBaseHKD = 1000;
 let isEditMode = false;
@@ -68,8 +69,19 @@ function loadDisplayedCurrencies() {
   }
 }
 
+function loadPinnedCurrencies() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.pinnedCurrencies));
+    if (!Array.isArray(stored)) return [];
+    return [...new Set(stored.filter((code) => displayedCurrencies.includes(code)))];
+  } catch {
+    return [];
+  }
+}
+
 function saveSettings() {
   localStorage.setItem(STORAGE_KEYS.currencies, JSON.stringify(displayedCurrencies));
+  localStorage.setItem(STORAGE_KEYS.pinnedCurrencies, JSON.stringify(pinnedCurrencies));
 }
 
 function setUpdateStatus(message, state = '') {
@@ -162,10 +174,12 @@ function formatCurrencyAmount(code, amount) {
 const currencyListElement = document.getElementById('currency-list');
 
 function getVisibleCurrencyCodes() {
-  return displayedCurrencies.filter((code) => {
+  const visibleCodes = displayedCurrencies.filter((code) => {
     const rate = Number(ratesVsHKD?.[code]);
     return allCurrencyInfo[code] && Number.isFinite(rate) && rate > 0;
   });
+  const pinnedSet = new Set(pinnedCurrencies);
+  return [...visibleCodes.filter((code) => pinnedSet.has(code)), ...visibleCodes.filter((code) => !pinnedSet.has(code))];
 }
 
 function createCurrencyCard(code) {
@@ -174,8 +188,10 @@ function createCurrencyCard(code) {
   const amount = currentBaseHKD * exchangeRate;
   const cardColor = getCardColor(code);
   const card = document.createElement('article');
+  const isPinned = pinnedCurrencies.includes(code);
   card.className = 'currency-card';
   card.dataset.code = code;
+  if (isPinned) card.classList.add('pinned');
   card.style.background = cardColor.bg;
   card.style.borderColor = cardColor.border;
   if (isEditMode) card.classList.add('editing');
@@ -183,10 +199,11 @@ function createCurrencyCard(code) {
   card.innerHTML = `
     <div class="card-actions-left">
       <span class="drag-handle" role="button" tabindex="0" aria-label="拖曳排序 ${code}">⠿</span>
+      <button class="pin-btn${isPinned ? ' pinned' : ''}" type="button" aria-label="${isPinned ? '取消釘選' : '釘選'} ${code}" aria-pressed="${isPinned}" title="${isPinned ? '取消釘選' : '釘選至熱門貨幣'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/></svg></button>
       ${code !== 'HKD' ? `<button class="delete-btn" type="button" aria-label="移除 ${code}">×</button>` : ''}
     </div>
     <div class="flag-icon"><img src="https://flagcdn.com/w40/${info.code}.png" width="40" height="30" alt="${code} 國旗" loading="lazy" decoding="async"></div>
-    <div class="currency-info"><div class="currency-code">${code}</div><div class="currency-name">${info.name}</div></div>
+    <div class="currency-info"><div class="currency-code">${code}</div>${isPinned ? '<span class="pin-indicator" aria-label="已釘選">★</span>' : ''}<div class="currency-name">${info.name}</div></div>
     <div class="currency-value"><input type="text" id="input-${code}" class="amount-input" value="${info.symbol} ${formatCurrencyAmount(code, amount)}" readonly aria-label="${code} 金額"></div>`;
   return card;
 }
@@ -214,8 +231,18 @@ currencyListElement.addEventListener('click', (event) => {
   if (!card || !currencyListElement.contains(card)) return;
   const code = card.dataset.code;
 
+  if (event.target.closest('.pin-btn')) {
+    pinnedCurrencies = pinnedCurrencies.includes(code)
+      ? pinnedCurrencies.filter((item) => item !== code)
+      : [...pinnedCurrencies, code];
+    saveSettings();
+    renderCurrencies();
+    return;
+  }
+
   if (event.target.closest('.delete-btn')) {
     displayedCurrencies = displayedCurrencies.filter((item) => item !== code);
+    pinnedCurrencies = pinnedCurrencies.filter((item) => item !== code);
     saveSettings();
     renderCurrencies();
     return;
