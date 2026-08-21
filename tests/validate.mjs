@@ -44,7 +44,8 @@ expect(appJs.includes('pin-indicator') && indexHtml.includes('.pin-indicator'), 
 expect(appJs.includes('startManualDrag'), '找不到拖曳排序邏輯');
 expect(appJs.includes('sourceMenuButton') && appJs.includes('setSourceMenuOpen'), '找不到圖示化匯率來源選單邏輯');
 expect(appJs.includes('fx_terminal_theme') && appJs.includes('applyTheme') && appJs.includes('themeButton'), '找不到主題偏好保存與切換邏輯');
-expect(appJs.includes('darkenHexColor') && appJs.includes('saturation = 0.32') && appJs.includes("dataset.theme === 'dark'"), '找不到低飽和度的深色貨幣卡片色彩處理');
+expect(appJs.includes('pastelHexColor') && appJs.includes('lightness = 0.8') && appJs.includes('saturation = 0.72') && appJs.includes("dataset.theme === 'dark'"), '找不到高飽和度、80% 亮度的淡色貨幣卡片色彩處理');
+expect(indexHtml.includes('--toolbar-btn-bg:#c9e5f7') && indexHtml.includes('--editing-bg:#f3b7c2'), '深色模式工具列按鈕未改為淡色配色');
 expect(appJs.includes('EDIT_ICONS') && appJs.includes('updateEditButton') && !appJs.includes("textContent = isEditMode ? '完成'"), '編輯按鈕未改為圖示化完成控制');
 expect(!appJs.includes('apiSelector'), '主程式仍使用已移除的來源下拉選單');
 expect(appJs.includes('evaluateExpression'), '找不到受限計算器解析器');
@@ -66,7 +67,7 @@ for (const icon of manifest.icons || []) {
   expect(existsSync(iconPath), `找不到圖示檔案：${icon.src}`);
 }
 
-expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v17'"), 'Service Worker 快取版本未更新');
+expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v18'"), 'Service Worker 快取版本未更新');
 expect(serviceWorker.includes('./app.js'), 'Service Worker 未預快取新版主程式');
 expect(serviceWorker.includes('NETWORK_FIRST_PATHS') && serviceWorker.includes('networkFirst'), 'Service Worker 未對核心更新資產採取網路優先策略');
 expect(serviceWorker.includes('APP_SHELL'), 'Service Worker 缺少 App Shell 快取設定');

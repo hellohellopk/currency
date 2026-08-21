@@ -55,19 +55,41 @@ let calcTarget = 'HKD';
 let rateCacheStore = null;
 let backgroundRefreshTimer = null;
 
-function darkenHexColor(hex, factor = 0.4, saturation = 0.32) {
+function pastelHexColor(hex, lightness = 0.8, saturation = 0.72) {
   const value = Number.parseInt(hex.slice(1), 16);
-  const channels = [16, 8, 0].map((offset) => (value >> offset) & 255);
-  const neutral = channels.reduce((sum, channel) => sum + channel, 0) / channels.length;
-  const muted = channels.map((channel) => Math.round((neutral + (channel - neutral) * saturation) * factor));
-  return `#${muted.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+  const [red, green, blue] = [16, 8, 0].map((offset) => ((value >> offset) & 255) / 255);
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  let hue = 0;
+
+  if (delta) {
+    if (max === red) hue = ((green - blue) / delta + (green < blue ? 6 : 0)) / 6;
+    else if (max === green) hue = ((blue - red) / delta + 2) / 6;
+    else hue = ((red - green) / delta + 4) / 6;
+  }
+
+  const hueChannel = (offset) => {
+    let channelHue = hue + offset;
+    if (channelHue < 0) channelHue += 1;
+    if (channelHue > 1) channelHue -= 1;
+    const q = lightness < 0.5 ? lightness * (1 + saturation) : lightness + saturation - lightness * saturation;
+    const p = 2 * lightness - q;
+    if (channelHue < 1 / 6) return p + (q - p) * 6 * channelHue;
+    if (channelHue < 1 / 2) return q;
+    if (channelHue < 2 / 3) return p + (q - p) * (2 / 3 - channelHue) * 6;
+    return p;
+  };
+
+  const channels = [1 / 3, 0, -1 / 3].map((offset) => Math.round(hueChannel(offset) * 255));
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 function getCardColor(code) {
   const lightColor = RGB_CARD_COLORS[code] || '#E5E5E5';
   const isDark = document.documentElement.dataset.theme === 'dark';
-  const bg = isDark ? darkenHexColor(lightColor) : lightColor;
-  return { bg, border: isDark ? 'rgba(255, 255, 255, .24)' : 'rgba(0, 0, 0, .22)', watermark: isDark ? 'rgba(255, 255, 255, .26)' : 'rgba(0, 0, 0, .25)' };
+  const bg = isDark ? pastelHexColor(lightColor) : lightColor;
+  return { bg, border: isDark ? 'rgba(0, 0, 0, .24)' : 'rgba(0, 0, 0, .22)', watermark: isDark ? 'rgba(0, 0, 0, .24)' : 'rgba(0, 0, 0, .25)' };
 }
 
 function loadDisplayedCurrencies() {
