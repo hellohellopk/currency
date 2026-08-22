@@ -24,6 +24,11 @@ expect(indexHtml.includes('currency-list'), '首頁缺少匯率清單容器');
 expect(indexHtml.includes('app-footer') && !indexHtml.includes('header-content'), '匯率資訊未移至頁面底部');
 expect(indexHtml.includes('refresh-btn'), '首頁缺少手動重新整理按鈕');
 expect(indexHtml.includes('header-toolbar') && indexHtml.includes('icon-btn'), '首頁缺少頂部圖示工具列');
+const toolbarIconIds = [...indexHtml.matchAll(/class="icon-btn" id="([^"]+)"/g)].map((match) => match[1]);
+const expectedToolbarIconIds = ['theme-btn', 'refresh-btn', 'edit-btn', 'add-btn', 'preferences-menu-btn', 'source-menu-btn'];
+expect(toolbarIconIds.length === 6 && expectedToolbarIconIds.every((id) => toolbarIconIds.includes(id)), '頂部工具列應包含六個主要圖示控制');
+expect(new Set(toolbarIconIds).size === toolbarIconIds.length && !/class="icon-btn" id="install-btn"/.test(indexHtml), '頂部工具列仍含有重複或非主要控制圖示');
+expect(indexHtml.includes('<ellipse cx="12" cy="6.5"') && indexHtml.includes('<rect x="3.5" y="5"'), '匯率來源與偏好設定圖示未改為可辨識的不同符號');
 expect(indexHtml.includes('id="theme-btn"') && indexHtml.includes('data-theme="dark"'), '首頁缺少深色模式切換按鈕或深色樣式');
 expect(indexHtml.includes('preferences-menu-btn') && indexHtml.includes('preferences-menu'), '首頁缺少卡片偏好設定面板');
 expect(indexHtml.includes('data-density="compact"') && indexHtml.includes('data-density="comfortable"'), '首頁缺少緊湊與舒適卡片密度選項');
@@ -73,7 +78,7 @@ for (const icon of manifest.icons || []) {
   expect(existsSync(iconPath), `找不到圖示檔案：${icon.src}`);
 }
 
-expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v19'"), 'Service Worker 快取版本未更新');
+expect(serviceWorker.includes("CACHE_NAME = 'fx-terminal-pwa-v20'"), 'Service Worker 快取版本未更新');
 expect(serviceWorker.includes('./app.js'), 'Service Worker 未預快取新版主程式');
 expect(serviceWorker.includes('NETWORK_FIRST_PATHS') && serviceWorker.includes('networkFirst'), 'Service Worker 未對核心更新資產採取網路優先策略');
 expect(serviceWorker.includes('APP_SHELL'), 'Service Worker 缺少 App Shell 快取設定');

@@ -506,12 +506,12 @@ const cardThemeOptions = [...preferencesMenu.querySelectorAll('[data-card-theme]
 let selectedApiType = getSavedApiType();
 
 const THEME_ICONS = {
-  light: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8 8 0 0 1 9.8 3.5 8 8 0 1 0 20.5 14.2z"/></svg>',
-  dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+  light: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.7A7.5 7.5 0 0 1 8.3 4 7.5 7.5 0 1 0 20 15.7z"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.7"/><path d="M12 2.8v2M12 19.2v2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M2.8 12h2M19.2 12h2M5.5 18.5l1.4-1.4M17.1 6.9l1.4-1.4"/></svg>'
 };
 const EDIT_ICONS = {
-  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16z"/><path d="m14.5 6.5 3 3"/></svg>',
-  done: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.2 4.2L19 6.5"/></svg>'
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="12" height="16" rx="2"/><path d="m10 16 7.8-7.8a1.7 1.7 0 0 1 2.4 2.4L12.4 18 9 19z"/></svg>',
+  done: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.4 2.5 4.9-5"/></svg>'
 };
 
 function getSavedTheme() {
