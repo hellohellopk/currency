@@ -40,7 +40,7 @@ const RGB_CARD_COLORS = {
 };
 const defaultCurrencies = ['HKD', 'USD', 'EUR', 'JPY', 'GBP', 'CNY', 'AUD', 'CAD', 'CHF', 'SGD', 'SEK', 'KRW', 'NOK', 'NZD', 'INR', 'MXN', 'TWD', 'ZAR', 'BRL', 'THB'];
 const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND']);
-const STORAGE_KEYS = { currencies: 'fx_terminal_list', pinnedCurrencies: 'fx_terminal_pinned', api: 'fx_terminal_api', theme: 'fx_terminal_theme', rateCache: 'fx_terminal_rate_cache', rateCaches: 'fx_terminal_rate_caches_v2' };
+const STORAGE_KEYS = { currencies: 'fx_terminal_list', pinnedCurrencies: 'fx_terminal_pinned', api: 'fx_terminal_api', theme: 'fx_terminal_theme', density: 'fx_terminal_density', cardTheme: 'fx_terminal_card_theme', rateCache: 'fx_terminal_rate_cache', rateCaches: 'fx_terminal_rate_caches_v2' };
 const RATE_CACHE_FRESH_MS = 15 * 60 * 1000;
 const RATE_CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
@@ -54,6 +54,13 @@ let calcVal = '0';
 let calcTarget = 'HKD';
 let rateCacheStore = null;
 let backgroundRefreshTimer = null;
+const CARD_THEMES = {
+  pastel: { lightness: 0.8, saturation: 0.72 },
+  soft: { lightness: 0.84, saturation: 0.38 },
+  mono: { lightness: 0.8, saturation: 0.05 }
+};
+let selectedDensity = getSavedDensity();
+let selectedCardTheme = getSavedCardTheme();
 
 function pastelHexColor(hex, lightness = 0.8, saturation = 0.72) {
   const value = Number.parseInt(hex.slice(1), 16);
@@ -86,10 +93,10 @@ function pastelHexColor(hex, lightness = 0.8, saturation = 0.72) {
 }
 
 function getCardColor(code) {
-  const lightColor = RGB_CARD_COLORS[code] || '#E5E5E5';
-  const isDark = document.documentElement.dataset.theme === 'dark';
-  const bg = isDark ? pastelHexColor(lightColor) : lightColor;
-  return { bg, border: isDark ? 'rgba(0, 0, 0, .24)' : 'rgba(0, 0, 0, .22)', watermark: isDark ? 'rgba(0, 0, 0, .24)' : 'rgba(0, 0, 0, .25)' };
+  const sourceColor = RGB_CARD_COLORS[code] || '#E5E5E5';
+  const colorTheme = CARD_THEMES[selectedCardTheme] || CARD_THEMES.pastel;
+  const bg = pastelHexColor(sourceColor, colorTheme.lightness, colorTheme.saturation);
+  return { bg, border: 'rgba(0, 0, 0, .22)', watermark: 'rgba(0, 0, 0, .25)' };
 }
 
 function loadDisplayedCurrencies() {
@@ -491,6 +498,11 @@ const sourceControl = document.querySelector('.source-control');
 const sourceMenuButton = document.getElementById('source-menu-btn');
 const sourceMenu = document.getElementById('source-menu');
 const sourceOptions = [...sourceMenu.querySelectorAll('.source-option')];
+const preferencesControl = document.querySelector('.preferences-control');
+const preferencesMenuButton = document.getElementById('preferences-menu-btn');
+const preferencesMenu = document.getElementById('preferences-menu');
+const densityOptions = [...preferencesMenu.querySelectorAll('[data-density]')];
+const cardThemeOptions = [...preferencesMenu.querySelectorAll('[data-card-theme]')];
 let selectedApiType = getSavedApiType();
 
 const THEME_ICONS = {
@@ -508,6 +520,16 @@ function getSavedTheme() {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
+function getSavedDensity() {
+  const saved = localStorage.getItem(STORAGE_KEYS.density);
+  return saved === 'comfortable' ? 'comfortable' : 'compact';
+}
+
+function getSavedCardTheme() {
+  const saved = localStorage.getItem(STORAGE_KEYS.cardTheme);
+  return CARD_THEMES[saved] ? saved : 'pastel';
+}
+
 function applyTheme(theme, { render = true } = {}) {
   const isDark = theme === 'dark';
   document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
@@ -520,8 +542,39 @@ function applyTheme(theme, { render = true } = {}) {
   if (render && ratesVsHKD) renderCurrencies();
 }
 
+function updatePreferenceOptions() {
+  densityOptions.forEach((option) => option.setAttribute('aria-pressed', String(option.dataset.density === selectedDensity)));
+  cardThemeOptions.forEach((option) => option.setAttribute('aria-pressed', String(option.dataset.cardTheme === selectedCardTheme)));
+}
+
+function applyDensity(density) {
+  selectedDensity = density === 'comfortable' ? 'comfortable' : 'compact';
+  document.documentElement.dataset.density = selectedDensity;
+  localStorage.setItem(STORAGE_KEYS.density, selectedDensity);
+  updatePreferenceOptions();
+}
+
+function applyCardTheme(cardTheme, { render = true } = {}) {
+  selectedCardTheme = CARD_THEMES[cardTheme] ? cardTheme : 'pastel';
+  document.documentElement.dataset.cardTheme = selectedCardTheme;
+  localStorage.setItem(STORAGE_KEYS.cardTheme, selectedCardTheme);
+  updatePreferenceOptions();
+  if (render && ratesVsHKD) renderCurrencies();
+}
+
+function setPreferencesMenuOpen(isOpen) {
+  preferencesMenu.classList.toggle('active', isOpen);
+  preferencesMenuButton.setAttribute('aria-expanded', String(isOpen));
+  if (isOpen) setSourceMenuOpen(false);
+}
+
 applyTheme(getSavedTheme(), { render: false });
+applyDensity(selectedDensity);
+applyCardTheme(selectedCardTheme, { render: false });
 themeButton.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+preferencesMenuButton.addEventListener('click', () => setPreferencesMenuOpen(!preferencesMenu.classList.contains('active')));
+densityOptions.forEach((option) => option.addEventListener('click', () => applyDensity(option.dataset.density)));
+cardThemeOptions.forEach((option) => option.addEventListener('click', () => applyCardTheme(option.dataset.cardTheme)));
 
 function updateEditButton() {
   const button = document.getElementById('edit-btn');
@@ -605,6 +658,7 @@ function hydrateCachedRates(apiType = selectedApiType) {
 function setSourceMenuOpen(isOpen) {
   sourceMenu.classList.toggle('active', isOpen);
   sourceMenuButton.setAttribute('aria-expanded', String(isOpen));
+  if (isOpen) setPreferencesMenuOpen(false);
 }
 
 function updateSelectedSourceOption() {
@@ -629,9 +683,13 @@ sourceOptions.forEach((option) => option.addEventListener('click', () => {
 }));
 document.addEventListener('click', (event) => {
   if (!sourceControl.contains(event.target)) setSourceMenuOpen(false);
+  if (!preferencesControl.contains(event.target)) setPreferencesMenuOpen(false);
 });
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') setSourceMenuOpen(false);
+  if (event.key === 'Escape') {
+    setSourceMenuOpen(false);
+    setPreferencesMenuOpen(false);
+  }
 });
 refreshButton.addEventListener('click', () => initialize({ forceNetwork: true }));
 
